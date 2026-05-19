@@ -574,6 +574,18 @@ def db_restore(backup_path):
         src.close()
 
 
+def db_open_partials_count():
+    """T7.15. Count of PartialFills rows where resolved=0."""
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            "SELECT COUNT(*) AS c FROM PartialFills WHERE resolved=0"
+        ).fetchone()
+    finally:
+        conn.close()
+    return int(row["c"] or 0)
+
+
 def db_expired_inventory(today=None):
     """T7.11. Return list of (drug_name, exp_date) for Inventory rows
     where exp_date < today (strictly past, NOT upcoming). today defaults
@@ -884,18 +896,27 @@ class PharmacyApp:
         db_log_audit(name, "Logged In")
         self._build_shell()
         self.navigate_to("home")
-        # T7.11 — Login-time expired-stock alert. Already-expired items
-        # only (not upcoming — those live on the Home card). All users
-        # see it so a tech doesn't pull expired stock off the shelf.
+        # T7.11 + T7.15 — Login briefing. Combines expired-stock alert
+        # with open-partials count into one popup so users get the
+        # full shift-start picture in one place, not two popups.
         expired = db_expired_inventory()
+        open_partials = db_open_partials_count()
+        sections = []
         if expired:
             lines = ["%s  —  expired %s" % (d, e) for d, e in expired]
             shown = lines[:10]
             if len(lines) > len(shown):
                 shown.append("...and %d more." % (len(lines) - len(shown)))
+            sections.append(
+                "EXPIRED STOCK — do not dispense:\n" + "\n".join(shown))
+        if open_partials > 0:
+            sections.append(
+                "OPEN PARTIALS: %d unresolved on the ledger."
+                % open_partials)
+        if sections:
             messagebox.showwarning(
-                "Expired Stock on Shelf",
-                "Do not dispense:\n\n" + "\n".join(shown))
+                "Shift Briefing",
+                "\n\n".join(sections))
 
     def logout(self):
         if self.user:
