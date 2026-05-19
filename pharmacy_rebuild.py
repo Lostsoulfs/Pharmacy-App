@@ -614,14 +614,28 @@ def db_add_user(name, role, pin=None):
 
 
 def db_remove_user(name):
-    """Cascading delete: user + their scores + mastery rows."""
+    """Cascading delete: user + their scores + mastery rows.
+    A3 fix 2026-05-19: refuses if removing this name would leave zero
+    admins (last-admin guard). Returns True on success, False if the
+    delete would leave zero admins (caller should surface the reason)."""
     conn = get_db_connection()
     try:
+        # A3 fix: last-admin guard
+        row = conn.execute(
+            "SELECT role FROM Users WHERE name=?", (name,)
+        ).fetchone()
+        if row and row["role"] == "admin":
+            admin_count = conn.execute(
+                "SELECT COUNT(*) AS c FROM Users WHERE role='admin'"
+            ).fetchone()["c"]
+            if admin_count <= 1:
+                return False
         conn.execute("DELETE FROM Users WHERE name=?", (name,))
         conn.execute("DELETE FROM Scores WHERE tech_name=?", (name,))
         conn.execute("DELETE FROM PTCBMastery WHERE tech_name=?", (name,))
         conn.execute("DELETE FROM MasteryStats WHERE tech_name=?", (name,))
         conn.commit()
+        return True
     finally:
         conn.close()
 
@@ -749,6 +763,15 @@ def db_restore(backup_path):
             dst.close()
     finally:
         src.close()
+
+
+def _like_escape(s):
+    """A5 fix. Escape SQL LIKE wildcards (%, _) so user-typed text
+    is treated as literal. Returns the escaped string; caller must
+    use ESCAPE '\\' clause in the LIKE query."""
+    if not s:
+        return s
+    return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 def _date_is_valid(s):
@@ -1933,11 +1956,14 @@ class PharmacyApp:
         conn = get_db_connection()
         try:
             if self._inv_filter:
+                # A5 fix: escape % and _ so user-typed text doesn't
+                # get treated as SQL LIKE wildcards.
+                pat = "%" + _like_escape(self._inv_filter) + "%"
                 inv_rows = conn.execute(
                     "SELECT drug_name, exp_date FROM Inventory "
-                    "WHERE drug_name LIKE ? "
+                    "WHERE drug_name LIKE ? ESCAPE '\\' "
                     "ORDER BY exp_date, drug_name",
-                    ("%" + self._inv_filter + "%",)
+                    (pat,)
                 ).fetchall()
             else:
                 inv_rows = conn.execute(
@@ -2019,10 +2045,12 @@ class PharmacyApp:
         conn = get_db_connection()
         try:
             if self._audit_filter:
-                like = "%" + self._audit_filter + "%"
+                # A5 fix: escape % and _ so user-typed text is literal.
+                like = "%" + _like_escape(self._audit_filter) + "%"
                 entries = conn.execute(
                     "SELECT timestamp, user, action FROM AuditLog "
-                    "WHERE user LIKE ? OR action LIKE ? "
+                    "WHERE user LIKE ? ESCAPE '\\' "
+                    "OR action LIKE ? ESCAPE '\\' "
                     "ORDER BY id DESC LIMIT 50",
                     (like, like)
                 ).fetchall()
@@ -2113,7 +2141,14 @@ class PharmacyApp:
                 "Remove Tech",
                 "Remove '%s' and their scores/mastery?" % name):
             return
-        db_remove_user(name)
+        # A3 fix: db_remove_user now returns False if the removal
+        # would leave zero admins. Surface that to the user.
+        if not db_remove_user(name):
+            messagebox.showerror(
+                "Remove Tech",
+                "Cannot remove '%s': would leave zero admins.\n"
+                "Add another admin first." % name)
+            return
         db_log_audit(self.user, "Removed tech: %s" % name)
         self.navigate_to("admin")
 
@@ -2430,12 +2465,22 @@ class PharmacyApp:
     def _partial_resolve(self, pid):
         conn = get_db_connection()
         try:
-            conn.execute(
-                "UPDATE PartialFills SET resolved=1 WHERE id=?", (pid,))
+            cur = conn.execute(
+                "UPDATE PartialFills SET resolved=1 WHERE id=? "
+                "AND resolved=0", (pid,))
+            affected = cur.rowcount
             conn.commit()
         finally:
             conn.close()
-        db_log_audit(self.user, "Resolved partial (ID: %s)" % pid)
+        # A6 fix: only audit-log when a row was actually changed.
+        # Prevents misleading 'Resolved partial (ID:X)' entry when
+        # the pid was already resolved or no longer exists.
+        if affected:
+            db_log_audit(self.user, "Resolved partial (ID: %s)" % pid)
+        else:
+            messagebox.showinfo(
+                "Partial",
+                "Already resolved or no longer in ledger.")
         self.navigate_to("partials")
 
     def panel_vaccines(self):
