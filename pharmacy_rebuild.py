@@ -1233,6 +1233,35 @@ class PharmacyApp:
                       name_e.get(), pin_e.get())
                   ).pack(fill="x", pady=(6, 0))
 
+        # ---- Class PTCB Readiness (T7.4) ----
+        # Per-tech mastery against the BRAND_GENERIC pool. Color bands:
+        # >=80 GREEN, >=50 ACCENT, <50 RED. Empty roster shows hint.
+        cr = tk.Frame(host, bg=PANEL)
+        cr.pack(fill="x", padx=14, pady=8)
+        tk.Label(cr, text="Class PTCB Readiness", bg=PANEL, fg=ACCENT,
+                 font=FONT_BUTTON).pack(anchor="w", padx=10, pady=(8, 4))
+        if not techs:
+            tk.Label(cr, text="(no technicians on roster)",
+                     bg=PANEL, fg=DIM, font=FONT_BODY).pack(
+                         anchor="w", padx=14, pady=(2, 10))
+        else:
+            for t in techs:
+                m_count, m_total, m_pct = ptcb_readiness(t)
+                if m_pct >= 80:
+                    col = GREEN
+                elif m_pct >= 50:
+                    col = ACCENT
+                else:
+                    col = RED
+                tk.Label(
+                    cr,
+                    text="%s  —  %d / %d  (%d%%)" % (
+                        t, m_count, m_total, m_pct),
+                    bg=PANEL, fg=col, font=FONT_BODY,
+                    anchor="w", wraplength=320, justify="left"
+                ).pack(anchor="w", padx=14, pady=2)
+            tk.Frame(cr, bg=PANEL, height=6).pack()
+
         # ---- Inventory / Expiration ----
         inv = tk.Frame(host, bg=PANEL)
         inv.pack(fill="x", padx=14, pady=8)
