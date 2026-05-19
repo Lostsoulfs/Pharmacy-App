@@ -1123,6 +1123,11 @@ class PharmacyApp:
             db_log_audit(self.user, "Logged Out")
         self.user = None
         self.is_admin = False
+        # A2 fix: clear UI filter state so it doesn't leak across
+        # users. Otherwise admin A's filter persists into admin B's
+        # next session — confusing at best, security signal at worst.
+        self._audit_filter = ""
+        self._inv_filter = ""
         self.login_screen()
 
     # ---- shell + routing ----
