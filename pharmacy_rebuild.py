@@ -2,10 +2,13 @@
 """
 Pharmacy Training & Workflow OS — Rebuild (Pydroid 3 / Tkinter target)
 
-Build status: T1 COMPLETE (S1 constants + S2 logic core).
-S3 (data layer), S4 (UI), S5 (entrypoint) are labeled banners pending
-T2..T6. This file is intentionally not yet runnable as an app — the
-logic core is complete and headlessly verified.
+Build status: T1..T6 COMPLETE. Runnable end-to-end in Pydroid 3.
+- S1 constants / clinical data
+- S2 pure logic core (audited + EARS corrections)
+- S3 data layer (fresh DB, 8 tables, parameterized writes)
+- S4 UI (login, shell, all panels: home, quiz, tools, calculators,
+  law, admin, tpr, hotkeys, partials, vaccines, sig, lookup)
+- S5 entrypoint
 
 Spec refs: constitution C-RULEs; EARS ears-behavior doc; ADR log.
 Fresh DB, no migration (ADR-C01 REJECTED). Tkinter on Pydroid 3
@@ -731,14 +734,7 @@ class PharmacyApp:
         if fn:
             fn()
 
-    def _placeholder(self, title, task):
-        host = self.make_scrollable(self.content_host)
-        tk.Label(host, text=title, bg=BG, fg=TEXT,
-                 font=FONT_HEADING).pack(pady=16)
-        tk.Label(host, text="[ panel pending — scheduled for %s ]" % task,
-                 bg=BG, fg=DIM, font=FONT_BODY).pack(pady=8)
-
-    # ---- real panels available at T3 (db-backed only) ----
+    # ---- panels ----
     def panel_home(self):
         host = self.make_scrollable(self.content_host)
         title = "Home Dashboard" if self.is_admin else "Station Dashboard"
@@ -1574,9 +1570,8 @@ class PharmacyApp:
 
 # ============================================================
 # S5 — ENTRYPOINT
-# === TEMPORARY SMOKE-TEST entrypoint (T3 shell shakeout). ===
-# T6 finalizes/cleans this. No migrate_* calls (ADR-C01).
-# Pydroid 3 auto-detects tkinter from the S4 import.
+# Pydroid 3: open this .py and press Play. init_db() creates the
+# fresh DB on first run (ADR-C01). No migrate_* calls.
 # ============================================================
 if __name__ == "__main__":
     init_db()
