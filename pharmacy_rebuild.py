@@ -533,6 +533,27 @@ def db_perf(tech):
         conn.close()
 
 
+def db_backup():
+    """T7.10. Online SQLite backup via sqlite3.Connection.backup API.
+    Safe with WAL and concurrent readers. Writes to a timestamped
+    .db file next to the live DB. Returns absolute path written."""
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    path = os.path.join(
+        os.path.expanduser("~"),
+        "pharmacy_backup_%s.db" % stamp)
+    src = sqlite3.connect(DB_FILE, timeout=15.0)
+    try:
+        dst = sqlite3.connect(path)
+        try:
+            with dst:
+                src.backup(dst)
+        finally:
+            dst.close()
+    finally:
+        src.close()
+    return path
+
+
 def db_export_audit_log():
     """T7.9. Export the entire AuditLog (not just latest 50, not the
     UI filter view — full table) to a plain-text file next to the DB.
@@ -1527,7 +1548,13 @@ class PharmacyApp:
         tk.Button(log_f, text="Export Full Audit Log",
                   bg=ACCENT, fg=BG, font=FONT_BUTTON, bd=0,
                   command=self._admin_export_audit
-                  ).pack(fill="x", padx=10, pady=(10, 10))
+                  ).pack(fill="x", padx=10, pady=(10, 4))
+
+        # T7.10 — DB backup. Full snapshot via online backup API.
+        tk.Button(log_f, text="Backup Database",
+                  bg=ACCENT, fg=BG, font=FONT_BUTTON, bd=0,
+                  command=self._admin_backup_db
+                  ).pack(fill="x", padx=10, pady=(0, 10))
 
     # ---- admin mutation handlers (T5.3) ----
     def _admin_add_tech(self, name, pin):
@@ -1617,6 +1644,22 @@ class PharmacyApp:
         messagebox.showinfo(
             "Export Complete",
             "Audit log written to:\n%s" % path)
+        self.navigate_to("admin")
+
+    def _admin_backup_db(self):
+        # T7.10 — full SQLite online backup. Audit-logs the backup
+        # action so the snapshot is itself traceable. sqlite3.Error
+        # (db locked, disk full, perms) is the failure mode.
+        try:
+            path = db_backup()
+        except (sqlite3.Error, OSError) as exc:
+            messagebox.showerror(
+                "Backup Failed", "Could not back up DB:\n%s" % exc)
+            return
+        db_log_audit(self.user, "Backed up DB to %s" % path)
+        messagebox.showinfo(
+            "Backup Complete",
+            "Database snapshot written to:\n%s" % path)
         self.navigate_to("admin")
 
     def panel_tpr(self):
