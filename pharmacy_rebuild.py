@@ -578,17 +578,28 @@ def db_log_audit(user, action):
 
 def db_add_user(name, role, pin=None):
     """Create/replace a user. Reserved names rejected. PIN hashed if
-    given. Returns True on success, False if name reserved/blank."""
+    given. Returns True on success, False if name reserved/blank OR
+    if name already exists with a DIFFERENT role (A1 fix: prevents
+    silent admin demotion via tech-add name collision)."""
     if not name or not name.strip():
         return False
     if name.strip().lower() in RESERVED_TECH_NAMES:
         return False
+    cleaned = name.strip()
     conn = get_db_connection()
     try:
+        # A1 fix: reject if the name exists with a different role.
+        # Without this, db_add_user("Nathan", "tech") silently
+        # overwrites the existing admin Nathan via INSERT OR REPLACE.
+        existing = conn.execute(
+            "SELECT role FROM Users WHERE name=?", (cleaned,)
+        ).fetchone()
+        if existing and existing["role"] != role:
+            return False
         conn.execute(
             "INSERT OR REPLACE INTO Users (name, role, pin_hash) "
             "VALUES (?, ?, ?)",
-            (name.strip(), role, hash_pin(pin) if pin else None),
+            (cleaned, role, hash_pin(pin) if pin else None),
         )
         conn.commit()
         return True
@@ -2070,7 +2081,8 @@ class PharmacyApp:
                 return
         if not db_add_user(name, "tech", pin if pin else None):
             messagebox.showerror(
-                "Add Tech", "Name is reserved or invalid.")
+                "Add Tech",
+                "Name is reserved, blank, or already taken by an admin.")
             return
         db_log_audit(self.user, "Added tech: %s" % name)
         self.navigate_to("admin")
