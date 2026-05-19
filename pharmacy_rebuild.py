@@ -169,24 +169,41 @@ def hash_pin(pin_string):
     return hashlib.sha256(pin_string.encode()).hexdigest()
 
 
-def calc_insulin_logic(daily_units, total_ml, concentration):
-    """EARS L-INS-01..04.
-    Correction C02 (F-02): reject non-positive total_ml / concentration.
-    Structural change: numeric-coercion guard separated from value
-    validation so a validation ValueError is not relabeled as a
-    coercion error. Contract preserved (raises ValueError); message
-    accuracy improved. Returns int floor (round-down, ext-verified)."""
+def calc_insulin_logic(daily_units, total_ml, concentration,
+                       priming_units_per_day=0):
+    """EARS L-INS-01..04 (+ F-06 fix, 2026-05-19).
+
+    F-06 (domain expert, Nathan, pharmacist 2026-05-19): insulin pens
+    waste ~2 units per injection on priming. Original formula
+    ignored this and over-estimated days supply.
+
+    New formula: days = floor(total_ml * concentration /
+                              (daily_units + priming_units_per_day))
+
+    priming_units_per_day defaults to 0 for backwards compat with
+    vial calculations. For pens, pharmacist enters
+    priming_per_injection × injections_per_day.
+
+    Corrections preserved:
+    - C02 (F-02): reject non-positive total_ml / concentration
+    - Numeric-coercion guard separated from value validation
+    - Contract preserved (raises ValueError on bad input)
+    - Returns int floor (round-down, ext-verified)"""
     try:
         daily = float(daily_units)
         total = float(total_ml)
         conc = float(concentration)
+        priming = float(priming_units_per_day)
     except (ValueError, TypeError):
         raise ValueError("Invalid numeric inputs.")
     if daily <= 0:
         raise ValueError("Daily units must be greater than zero.")
     if total <= 0 or conc <= 0:
         raise ValueError("Total mL and concentration must be > 0.")
-    return int((total * conc) / daily)
+    if priming < 0:
+        raise ValueError("Priming units cannot be negative.")
+    effective_daily = daily + priming
+    return int((total * conc) / effective_daily)
 
 
 def verify_dea_logic(dea):
@@ -1375,14 +1392,20 @@ class PharmacyApp:
         i_daily = field(ins, "Units/day")
         i_ml = field(ins, "Total mL")
         i_conc = field(ins, "Concentration")
+        # T7.17 — F-06 fix. Priming units/day. Pens waste ~2u per
+        # injection on priming; pharmacist enters
+        # priming_per_injection * injections_per_day. Default 0 = vial.
+        i_prime = field(ins, "Priming u/day")
+        i_prime.insert(0, "0")
         i_res = tk.Label(ins, text="--", bg=PANEL, fg=DIM,
                          font=FONT_BUTTON)
         i_res.pack(pady=8)
 
         def run_insulin():
             try:
-                days = calc_insulin_logic(i_daily.get(), i_ml.get(),
-                                          i_conc.get())
+                days = calc_insulin_logic(
+                    i_daily.get(), i_ml.get(), i_conc.get(),
+                    i_prime.get() or "0")
                 i_res.config(text="%d days supply" % days, fg=GREEN)
             except ValueError as e:
                 i_res.config(text=str(e), fg=RED)
