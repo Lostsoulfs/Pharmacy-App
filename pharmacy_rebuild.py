@@ -532,6 +532,28 @@ def db_perf(tech):
     finally:
         conn.close()
 
+
+def ptcb_readiness(tech):
+    """T7.3. Return (mastered, total, pct_int) for a tech's PTCB
+    readiness. mastered = COUNT(*) FROM PTCBMastery WHERE tech_name=?
+    AND drug_name matches any brand in BRAND_GENERIC. total = len of
+    BRAND_GENERIC. Empty pool -> (0, 0, 0) defensively."""
+    total = len(BRAND_GENERIC)
+    if total == 0:
+        return 0, 0, 0
+    pool = {d["brand"] for d in BRAND_GENERIC}
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(
+            "SELECT drug_name FROM PTCBMastery WHERE tech_name=?",
+            (tech,)
+        ).fetchall()
+    finally:
+        conn.close()
+    mastered = sum(1 for r in rows if r["drug_name"] in pool)
+    pct = int((mastered / total) * 100)
+    return mastered, total, pct
+
 # ============================================================
 # S4 — UI LAYER  (Tkinter, Pydroid 3)
 # T3 COMPLETE: shell, auth+lockout, nav, real Home/Tools.
@@ -801,6 +823,25 @@ class PharmacyApp:
             tk.Label(pf, text="Average Score: %d%%" % avg, bg=PANEL,
                      fg=TEXT, font=FONT_BODY).pack(anchor="w", padx=10,
                                                    pady=(0, 10))
+
+            # T7.3 — PTCB readiness. Counts distinct mastered drugs
+            # from PTCBMastery for this tech, against BRAND_GENERIC pool.
+            mastered, total, pct = ptcb_readiness(self.user)
+            rf = tk.Frame(host, bg=PANEL)
+            rf.pack(fill="x", padx=16, pady=8)
+            tk.Label(rf, text="PTCB Readiness", bg=PANEL, fg=ACCENT,
+                     font=FONT_BUTTON).pack(anchor="w", padx=10,
+                                            pady=(8, 2))
+            tk.Label(rf,
+                     text="Mastered: %d / %d  (%d%%)" % (
+                         mastered, total, pct),
+                     bg=PANEL, fg=GREEN if pct >= 80 else TEXT,
+                     font=FONT_BODY).pack(anchor="w", padx=10)
+            tk.Label(rf,
+                     text=("Ready for exam." if pct >= 80
+                           else "Keep drilling Top 200 quiz."),
+                     bg=PANEL, fg=DIM, font=FONT_BODY).pack(
+                         anchor="w", padx=10, pady=(0, 10))
 
     def panel_tools(self):
         host = self.make_scrollable(self.content_host)
