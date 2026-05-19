@@ -19,7 +19,7 @@ import os
 import hashlib
 import random
 import difflib
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # tkinter / sqlite3 imported in their own sections (T2/T3) so the
 # logic core (S2) stays headlessly testable in isolation.
@@ -311,7 +311,7 @@ def calculate_weight(tech_name, drug_name, conn):
 # All writes parameterized. Headlessly tested.
 # ============================================================
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 def get_db_connection():
@@ -740,6 +740,8 @@ class PharmacyApp:
         title = "Home Dashboard" if self.is_admin else "Station Dashboard"
         tk.Label(host, text=title, bg=BG, fg=TEXT,
                  font=FONT_HEADING).pack(pady=14)
+
+        # Shift Notes
         sn = tk.Frame(host, bg=PANEL)
         sn.pack(fill="x", padx=16, pady=8)
         tk.Label(sn, text="Shift Notes", bg=PANEL, fg=ACCENT,
@@ -748,6 +750,46 @@ class PharmacyApp:
                                        "Welcome to your shift."),
                  bg=PANEL, fg=TEXT, font=FONT_BODY, wraplength=340,
                  justify="left").pack(anchor="w", padx=10, pady=(0, 10))
+
+        # T7.1 — Expiration alerts. Reads Inventory for exp_date within
+        # the next 30 days (or already expired). ISO date strings sort
+        # lexicographically, so SQLite string compare is correct here.
+        today = datetime.now().strftime("%Y-%m-%d")
+        soon = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
+        conn = get_db_connection()
+        try:
+            expiring = conn.execute(
+                "SELECT drug_name, exp_date FROM Inventory "
+                "WHERE exp_date <= ? ORDER BY exp_date ASC, drug_name ASC",
+                (soon,)
+            ).fetchall()
+        finally:
+            conn.close()
+
+        ef = tk.Frame(host, bg=PANEL)
+        ef.pack(fill="x", padx=16, pady=8)
+        tk.Label(ef, text="Expiration Alerts (≤ 30 days)",
+                 bg=PANEL, fg=ACCENT, font=FONT_BUTTON).pack(
+                     anchor="w", padx=10, pady=(8, 2))
+        if not expiring:
+            tk.Label(ef, text="No upcoming expirations.",
+                     bg=PANEL, fg=DIM, font=FONT_BODY).pack(
+                         anchor="w", padx=10, pady=(0, 10))
+        else:
+            for r in expiring:
+                is_expired = r["exp_date"] <= today
+                color = RED if is_expired else ACCENT
+                tag = "EXPIRED" if is_expired else "expires"
+                tk.Label(
+                    ef,
+                    text="%s  —  %s %s" % (
+                        r["drug_name"], tag, r["exp_date"]),
+                    bg=PANEL, fg=color, font=FONT_BODY,
+                    anchor="w", wraplength=320, justify="left"
+                ).pack(anchor="w", padx=14, pady=2)
+            tk.Frame(ef, bg=PANEL, height=6).pack()
+
+        # Tech performance card
         if not self.is_admin:
             q, avg = db_perf(self.user)
             pf = tk.Frame(host, bg=PANEL)
