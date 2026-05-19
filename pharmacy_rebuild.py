@@ -533,6 +533,27 @@ def db_perf(tech):
         conn.close()
 
 
+def db_recent_scores(tech, limit=10):
+    """T7.6. Return list of (date, correct, total, pct) for a tech's
+    most recent quiz sessions, newest first, capped at `limit`."""
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(
+            "SELECT date, correct, total FROM Scores "
+            "WHERE tech_name=? ORDER BY id DESC LIMIT ?",
+            (tech, int(limit))
+        ).fetchall()
+    finally:
+        conn.close()
+    out = []
+    for r in rows:
+        total = r["total"] or 0
+        correct = r["correct"] or 0
+        pct = int((correct / total) * 100) if total > 0 else 0
+        out.append((r["date"], correct, total, pct))
+    return out
+
+
 def db_weak_spots(tech, limit=5):
     """T7.5. Return list of (drug_name, missed, total, miss_pct) for
     the drugs this tech misses most, capped at `limit`. Sourced from
@@ -894,6 +915,35 @@ class PharmacyApp:
                         wraplength=320, justify="left"
                     ).pack(anchor="w", padx=14, pady=2)
                 tk.Frame(wf, bg=PANEL, height=6).pack()
+
+            # T7.6 — Recent Quizzes: last 10 sessions, newest first.
+            recent = db_recent_scores(self.user, limit=10)
+            rqf = tk.Frame(host, bg=PANEL)
+            rqf.pack(fill="x", padx=16, pady=8)
+            tk.Label(rqf, text="Recent Quizzes",
+                     bg=PANEL, fg=ACCENT, font=FONT_BUTTON).pack(
+                         anchor="w", padx=10, pady=(8, 4))
+            if not recent:
+                tk.Label(rqf,
+                         text="No quizzes recorded yet.",
+                         bg=PANEL, fg=DIM, font=FONT_BODY).pack(
+                             anchor="w", padx=14, pady=(0, 10))
+            else:
+                for date, correct, total, pct in recent:
+                    if pct >= 80:
+                        col = GREEN
+                    elif pct >= 50:
+                        col = TEXT
+                    else:
+                        col = RED
+                    tk.Label(
+                        rqf,
+                        text="%s  —  %d / %d  (%d%%)" % (
+                            date, correct, total, pct),
+                        bg=PANEL, fg=col, font=FONT_BODY,
+                        anchor="w", wraplength=320, justify="left"
+                    ).pack(anchor="w", padx=14, pady=1)
+                tk.Frame(rqf, bg=PANEL, height=6).pack()
 
     def panel_tools(self):
         host = self.make_scrollable(self.content_host)
