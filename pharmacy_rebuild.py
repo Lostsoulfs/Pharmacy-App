@@ -533,6 +533,25 @@ def db_perf(tech):
         conn.close()
 
 
+def db_mastered_brands(tech, brand_list):
+    """T7.8. Return the subset of brand_list that this tech has
+    mastered (per PTCBMastery). Empty input -> set(). Single
+    parameterized query with dynamic IN placeholders."""
+    if not brand_list:
+        return set()
+    placeholders = ",".join("?" * len(brand_list))
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(
+            "SELECT drug_name FROM PTCBMastery "
+            "WHERE tech_name=? AND drug_name IN (" + placeholders + ")",
+            (tech, *brand_list)
+        ).fetchall()
+    finally:
+        conn.close()
+    return {r["drug_name"] for r in rows}
+
+
 def db_recent_scores(tech, limit=10):
     """T7.6. Return list of (date, correct, total, pct) for a tech's
     most recent quiz sessions, newest first, capped at `limit`."""
@@ -1822,11 +1841,22 @@ class PharmacyApp:
                 d for d in BRAND_GENERIC
                 if q in d["brand"].lower() or q in d["generic"].lower()
             ]
+            # T7.8 — mastery indicator (tech only). One bulk query for
+            # all hit brands, build a set, decorate each result line.
+            mastered = set()
+            if hits and not self.is_admin:
+                mastered = db_mastered_brands(
+                    self.user, [d["brand"] for d in hits])
             lines = []
             if hits:
                 for d in hits:
                     lines.append("Brand: %s  |  Generic: %s" % (
                         d["brand"], d["generic"]))
+                    if not self.is_admin:
+                        if d["brand"] in mastered:
+                            lines.append("  ✓ Mastered")
+                        else:
+                            lines.append("  · Not yet mastered")
                     # check COMMON_RX_FLAGS against generic name
                     for drug, flag in COMMON_RX_FLAGS:
                         if drug in d["generic"].lower():
