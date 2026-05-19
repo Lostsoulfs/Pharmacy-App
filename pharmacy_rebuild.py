@@ -202,8 +202,16 @@ def calc_insulin_logic(daily_units, total_ml, concentration,
         raise ValueError("Total mL and concentration must be > 0.")
     if priming < 0:
         raise ValueError("Priming units cannot be negative.")
+    # T7.18 / F-07 — bounds. Reject inputs > 1e6 (float-nonsense
+    # territory); cap output at 3650 days (10 years).
+    if max(daily, total, conc, priming) > 1e6:
+        raise ValueError("Input out of plausible range.")
     effective_daily = daily + priming
-    return int((total * conc) / effective_daily)
+    days = int((total * conc) / effective_daily)
+    if days > 3650:
+        raise ValueError(
+            "Result implausible (> 10 years). Check inputs.")
+    return days
 
 
 def verify_dea_logic(dea):
@@ -229,16 +237,23 @@ def verify_dea_logic(dea):
 
 
 def calc_days_supply_logic(quantity, units_per_day):
-    """EARS L-DS-01/02. Unchanged from audited v13 (GREEN).
-    int() floor = round-down = dominant billing convention."""
+    """EARS L-DS-01/02 (+ F-07 fix, 2026-05-19).
+    int() floor = round-down = dominant billing convention.
+    F-07: reject inputs > 1e6 and outputs > 3650 days (10 years)."""
     try:
         qty = float(quantity)
         daily = float(units_per_day)
-        if qty <= 0 or daily <= 0:
-            raise ValueError
-        return int(qty / daily)
     except (ValueError, TypeError):
         raise ValueError("Invalid quantity or daily-use value.")
+    if qty <= 0 or daily <= 0:
+        raise ValueError("Invalid quantity or daily-use value.")
+    if max(qty, daily) > 1e6:
+        raise ValueError("Input out of plausible range.")
+    days = int(qty / daily)
+    if days > 3650:
+        raise ValueError(
+            "Result implausible (> 10 years). Check inputs.")
+    return days
 
 
 def normalize_answer(value):
