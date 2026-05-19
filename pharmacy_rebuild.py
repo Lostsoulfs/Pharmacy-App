@@ -236,6 +236,46 @@ def verify_dea_logic(dea):
     return check == dea[-1]
 
 
+def calc_peds_dose(weight_kg, mg_per_kg_per_day, doses_per_day,
+                   concentration_mg_per_ml):
+    """T7.23. Pediatric weight-based dose to mL-per-dose.
+
+    Workflow: 'Amoxicillin 90 mg/kg/day BID, child 18 kg,
+    250 mg/5 mL suspension' -> mL per dose.
+
+    Steps:
+      total_mg_per_day = weight_kg × mg_per_kg_per_day
+      mg_per_dose      = total_mg_per_day / doses_per_day
+      mL_per_dose      = mg_per_dose / concentration_mg_per_ml
+
+    Returns (mg_per_dose, mL_per_dose) both rounded to 2 decimals.
+    Raises ValueError on bad input or implausible bounds.
+
+    Concentration_mg_per_ml expects e.g. 50 for a '250 mg per 5 mL'
+    suspension (250/5 = 50). Pharmacist does the division up front.
+    No internal unit conversion."""
+    try:
+        wt = float(weight_kg)
+        mkd = float(mg_per_kg_per_day)
+        d = float(doses_per_day)
+        conc = float(concentration_mg_per_ml)
+    except (ValueError, TypeError):
+        raise ValueError("Invalid numeric inputs.")
+    if wt <= 0 or wt > 200:
+        raise ValueError("Weight must be 0 < weight <= 200 kg.")
+    if mkd <= 0 or mkd > 1000:
+        raise ValueError("mg/kg/day must be 0 < x <= 1000.")
+    if d <= 0 or d > 24:
+        raise ValueError("Doses/day must be 0 < n <= 24.")
+    if conc <= 0 or conc > 1000:
+        raise ValueError(
+            "Concentration must be 0 < mg/mL <= 1000.")
+    total_mg = wt * mkd
+    mg_per_dose = total_mg / d
+    ml_per_dose = mg_per_dose / conc
+    return round(mg_per_dose, 2), round(ml_per_dose, 2)
+
+
 def calc_bsa_mosteller(height_cm, weight_kg):
     """T7.22. Body Surface Area via Mosteller formula (NEJM 1987;
     widely used for chemotherapy and pediatric dose calculation;
@@ -1641,6 +1681,40 @@ class PharmacyApp:
         tk.Label(bsa,
                  text="Source: Mosteller, NEJM 1987. FDA-cited for "
                       "chemo and pediatric weight-based dosing.",
+                 bg=PANEL, fg=DIM, font=FONT_BODY,
+                 wraplength=320, justify="left").pack(
+                     anchor="w", padx=10, pady=(0, 10))
+
+        # --- T7.23: Pediatric weight-based dose ---
+        pd = section("Pediatric Dose (weight-based)")
+        pd_wt = field(pd, "Weight (kg)")
+        pd_mkd = field(pd, "mg/kg/day")
+        pd_dpd = field(pd, "Doses/day")
+        pd_conc = field(pd, "Conc (mg/mL)")
+        pd_res = tk.Label(pd, text="--", bg=PANEL, fg=DIM,
+                          font=FONT_BUTTON, justify="left",
+                          wraplength=320)
+        pd_res.pack(pady=8)
+
+        def run_pd():
+            try:
+                mgd, mld = calc_peds_dose(
+                    pd_wt.get(), pd_mkd.get(),
+                    pd_dpd.get(), pd_conc.get())
+                pd_res.config(
+                    text="Per dose: %s mg  /  %s mL" % (mgd, mld),
+                    fg=GREEN)
+            except ValueError as e:
+                pd_res.config(text=str(e), fg=RED)
+
+        tk.Button(pd, text="Calculate", bg=ACCENT, fg=BG,
+                  font=FONT_BUTTON, bd=0, command=run_pd
+                  ).pack(fill="x", padx=10, pady=(0, 4))
+        tk.Label(pd,
+                 text="Concentration: enter as mg/mL "
+                      "(250 mg/5 mL suspension = 50 mg/mL). "
+                      "Pharmacist verifies max-daily-dose and "
+                      "appropriateness independently.",
                  bg=PANEL, fg=DIM, font=FONT_BODY,
                  wraplength=320, justify="left").pack(
                      anchor="w", padx=10, pady=(0, 10))
