@@ -236,6 +236,38 @@ def verify_dea_logic(dea):
     return check == dea[-1]
 
 
+def calc_crcl_cockcroft_gault(age, weight_kg, serum_cr_mg_dl, is_female=False):
+    """T7.21. Cockcroft-Gault creatinine clearance estimate.
+
+    Formula (Cockcroft & Gault, Nephron 1976; widely cited and used
+    by FDA for renal dose adjustment):
+
+      CrCl (mL/min) = [(140 - age) × weight_kg] / (72 × SCr)
+                     × 0.85 if female
+
+    Returns float CrCl rounded to 1 decimal. Raises ValueError on
+    bad input or implausible result. Note this is an ESTIMATE — not
+    a substitute for measured CrCl, and not validated in pediatrics,
+    extremes of weight, or unstable renal function. Pharmacist
+    judgment required."""
+    try:
+        age_y = float(age)
+        wt = float(weight_kg)
+        scr = float(serum_cr_mg_dl)
+    except (ValueError, TypeError):
+        raise ValueError("Invalid numeric inputs.")
+    if age_y <= 0 or age_y > 130:
+        raise ValueError("Age must be 0 < age <= 130 years.")
+    if wt <= 0 or wt > 500:
+        raise ValueError("Weight must be 0 < weight <= 500 kg.")
+    if scr <= 0 or scr > 30:
+        raise ValueError("Serum creatinine must be 0 < SCr <= 30 mg/dL.")
+    crcl = ((140.0 - age_y) * wt) / (72.0 * scr)
+    if is_female:
+        crcl *= 0.85
+    return round(crcl, 1)
+
+
 def dea_registrant_type(dea):
     """T7.20. Return (type_label, is_prescriber) tuple for a DEA
     number based on the first-letter prefix per DEA Diversion Control
@@ -1512,6 +1544,59 @@ class PharmacyApp:
         tk.Button(dea, text="Verify", bg=ACCENT, fg=BG,
                   font=FONT_BUTTON, bd=0, command=run_dea
                   ).pack(fill="x", padx=10, pady=(0, 10))
+
+        # --- T7.21: Cockcroft-Gault CrCl (renal dosing) ---
+        cg = section("CrCl (Cockcroft-Gault)")
+        cg_age = field(cg, "Age (years)")
+        cg_wt = field(cg, "Weight (kg)")
+        cg_scr = field(cg, "Serum Cr (mg/dL)")
+        cg_sex_var = tk.StringVar(value="male")
+        sex_row = tk.Frame(cg, bg=PANEL)
+        sex_row.pack(fill="x", padx=10, pady=3)
+        tk.Label(sex_row, text="Sex", bg=PANEL, fg=TEXT, font=FONT_BODY,
+                 width=16, anchor="w").pack(side="left")
+        tk.Radiobutton(sex_row, text="Male", variable=cg_sex_var,
+                       value="male", bg=PANEL, fg=TEXT,
+                       selectcolor=BG, font=FONT_BODY,
+                       activebackground=PANEL).pack(side="left")
+        tk.Radiobutton(sex_row, text="Female", variable=cg_sex_var,
+                       value="female", bg=PANEL, fg=TEXT,
+                       selectcolor=BG, font=FONT_BODY,
+                       activebackground=PANEL).pack(side="left",
+                                                     padx=(8, 0))
+        cg_res = tk.Label(cg, text="--", bg=PANEL, fg=DIM,
+                          font=FONT_BUTTON)
+        cg_res.pack(pady=8)
+
+        def run_cg():
+            try:
+                crcl = calc_crcl_cockcroft_gault(
+                    cg_age.get(), cg_wt.get(), cg_scr.get(),
+                    is_female=(cg_sex_var.get() == "female"))
+                # Severity coloring per common renal-dosing bands.
+                # Not a substitute for FDA package-insert dose
+                # adjustment thresholds.
+                if crcl < 30:
+                    col = RED
+                elif crcl < 60:
+                    col = ACCENT
+                else:
+                    col = GREEN
+                cg_res.config(
+                    text="CrCl = %s mL/min" % crcl, fg=col)
+            except ValueError as e:
+                cg_res.config(text=str(e), fg=RED)
+
+        tk.Button(cg, text="Estimate", bg=ACCENT, fg=BG,
+                  font=FONT_BUTTON, bd=0, command=run_cg
+                  ).pack(fill="x", padx=10, pady=(0, 4))
+        tk.Label(cg,
+                 text="Estimate only. Not for pediatrics, extremes "
+                      "of weight, or unstable renal function. "
+                      "Source: Cockcroft & Gault, Nephron 1976.",
+                 bg=PANEL, fg=DIM, font=FONT_BODY,
+                 wraplength=320, justify="left").pack(
+                     anchor="w", padx=10, pady=(0, 10))
 
     def panel_law(self):
         # T5.2 + T7.19 — panel_law. Verbatim v13 bullets, UNVERIFIED
