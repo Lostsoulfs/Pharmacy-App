@@ -626,6 +626,35 @@ def db_backup():
     return path
 
 
+def db_export_inventory():
+    """T7.16. Export full Inventory table to a tab-separated plain
+    text file next to the DB. Same format conventions as the audit
+    export (header block + tsv rows). Returns absolute path written."""
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(
+            "SELECT drug_name, exp_date FROM Inventory "
+            "ORDER BY exp_date ASC, drug_name ASC"
+        ).fetchall()
+    finally:
+        conn.close()
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    path = os.path.join(
+        os.path.expanduser("~"),
+        "pharmacy_inventory_export_%s.txt" % stamp)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write("Pharmacy Inventory Export\n")
+        fh.write("Generated: %s\n" % datetime.now().isoformat(
+            timespec="seconds"))
+        fh.write("Total items: %d\n" % len(rows))
+        fh.write("Source DB: %s\n" % DB_FILE)
+        fh.write("---\n")
+        fh.write("drug_name\texp_date\n")
+        for r in rows:
+            fh.write("%s\t%s\n" % (r["drug_name"], r["exp_date"]))
+    return path
+
+
 def db_export_audit_log():
     """T7.9. Export the entire AuditLog (not just latest 50, not the
     UI filter view — full table) to a plain-text file next to the DB.
@@ -1621,6 +1650,12 @@ class PharmacyApp:
                       drug_e.get(), exp_e.get())
                   ).pack(fill="x", pady=(6, 0))
 
+        # T7.16 — Inventory export (stock-count audit use).
+        tk.Button(inv, text="Export Inventory",
+                  bg=ACCENT, fg=BG, font=FONT_BUTTON, bd=0,
+                  command=self._admin_export_inventory
+                  ).pack(fill="x", padx=10, pady=(4, 10))
+
         # ---- Audit Log Viewer (T5.3 + T7.7 filter) ----
         log_f = tk.Frame(host, bg=PANEL)
         log_f.pack(fill="x", padx=14, pady=8)
@@ -1796,6 +1831,21 @@ class PharmacyApp:
         # T7.12 — inventory drug-name filter. Same pattern as audit
         # filter: state attribute + redraw.
         self._inv_filter = (text or "").strip()
+        self.navigate_to("admin")
+
+    def _admin_export_inventory(self):
+        # T7.16 — export inventory to tab-separated text. Audit-logs
+        # the export. Same OSError handling pattern as T7.9.
+        try:
+            path = db_export_inventory()
+        except OSError as exc:
+            messagebox.showerror(
+                "Export Failed", "Could not write file:\n%s" % exc)
+            return
+        db_log_audit(self.user, "Exported inventory to %s" % path)
+        messagebox.showinfo(
+            "Export Complete",
+            "Inventory written to:\n%s" % path)
         self.navigate_to("admin")
 
     def _admin_export_audit(self):
