@@ -624,6 +624,9 @@ class PharmacyApp:
         # scope). Constants from S1: LOCKOUT_THRESHOLD / LOCKOUT_SECONDS.
         self._admin_fails = 0
         self._admin_lock_until = 0.0
+        # T7.7 — audit log filter persists across re-renders of
+        # panel_admin. Empty string = no filter.
+        self._audit_filter = ""
 
         root.title("Pharmacy OS")
         try:
@@ -1413,21 +1416,53 @@ class PharmacyApp:
                       drug_e.get(), exp_e.get())
                   ).pack(fill="x", pady=(6, 0))
 
-        # ---- Audit Log Viewer ----
+        # ---- Audit Log Viewer (T5.3 + T7.7 filter) ----
         log_f = tk.Frame(host, bg=PANEL)
         log_f.pack(fill="x", padx=14, pady=8)
-        tk.Label(log_f, text="Audit Log (latest 50)", bg=PANEL, fg=ACCENT,
+        header = ("Audit Log (latest 50, filter: '%s')" % self._audit_filter
+                  if self._audit_filter
+                  else "Audit Log (latest 50)")
+        tk.Label(log_f, text=header, bg=PANEL, fg=ACCENT,
                  font=FONT_BUTTON).pack(anchor="w", padx=10, pady=(8, 4))
+
+        # T7.7 filter form. Matches user OR action via parameterized LIKE.
+        filt_row = tk.Frame(log_f, bg=PANEL)
+        filt_row.pack(fill="x", padx=10, pady=(2, 6))
+        filt_e = tk.Entry(filt_row, font=FONT_BODY, bg=BG, fg=TEXT,
+                          insertbackground=TEXT)
+        filt_e.insert(0, self._audit_filter)
+        filt_e.pack(side="left", fill="x", expand=True, ipady=4)
+        tk.Button(filt_row, text="Filter", bg=ACCENT, fg=BG,
+                  font=FONT_BUTTON, bd=0,
+                  command=lambda: self._admin_audit_filter(filt_e.get())
+                  ).pack(side="left", padx=(6, 0))
+        if self._audit_filter:
+            tk.Button(filt_row, text="Clear", bg=DIM, fg=BG,
+                      font=FONT_BUTTON, bd=0,
+                      command=lambda: self._admin_audit_filter("")
+                      ).pack(side="left", padx=(6, 0))
+
         conn = get_db_connection()
         try:
-            entries = conn.execute(
-                "SELECT timestamp, user, action FROM AuditLog "
-                "ORDER BY id DESC LIMIT 50"
-            ).fetchall()
+            if self._audit_filter:
+                like = "%" + self._audit_filter + "%"
+                entries = conn.execute(
+                    "SELECT timestamp, user, action FROM AuditLog "
+                    "WHERE user LIKE ? OR action LIKE ? "
+                    "ORDER BY id DESC LIMIT 50",
+                    (like, like)
+                ).fetchall()
+            else:
+                entries = conn.execute(
+                    "SELECT timestamp, user, action FROM AuditLog "
+                    "ORDER BY id DESC LIMIT 50"
+                ).fetchall()
         finally:
             conn.close()
         if not entries:
-            tk.Label(log_f, text="(empty)", bg=PANEL, fg=DIM,
+            empty_msg = ("(no matches)" if self._audit_filter
+                         else "(empty)")
+            tk.Label(log_f, text=empty_msg, bg=PANEL, fg=DIM,
                      font=FONT_BODY).pack(anchor="w", padx=14, pady=(2, 10))
         for e in entries:
             tk.Label(log_f,
@@ -1501,6 +1536,14 @@ class PharmacyApp:
         db_set_state("shift_notes", cleaned)
         db_log_audit(self.user, "Updated shift notes")
         messagebox.showinfo("Shift Notes", "Saved.")
+
+    def _admin_audit_filter(self, text):
+        # T7.7 — set the audit log filter (or clear if empty) and
+        # re-render. SQL LIKE % wildcards are added at query time, not
+        # stored, so user-typed % is treated as literal-ish through the
+        # parameterized binding. No filter audit-log entry (would spam).
+        self._audit_filter = (text or "").strip()
+        self.navigate_to("admin")
 
     def panel_tpr(self):
         # T5.4 — TPR Insurance Guide. Static panel; verbatim 5 rows from
