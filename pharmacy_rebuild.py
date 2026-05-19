@@ -1131,6 +1131,25 @@ class PharmacyApp:
                      font=FONT_BUTTON).pack(pady=20)
             return
 
+        # ---- Shift Notes Editor (T7.2) ----
+        notes_card = tk.Frame(host, bg=PANEL)
+        notes_card.pack(fill="x", padx=14, pady=8)
+        tk.Label(notes_card, text="Shift Notes Editor", bg=PANEL,
+                 fg=ACCENT, font=FONT_BUTTON).pack(
+                     anchor="w", padx=10, pady=(8, 4))
+        notes_txt = tk.Text(notes_card, bg=BG, fg=TEXT, font=FONT_BODY,
+                            height=4, bd=0, wrap="word",
+                            insertbackground=TEXT, padx=8, pady=6)
+        notes_txt.pack(fill="x", padx=10, pady=2)
+        notes_txt.insert(
+            "1.0",
+            db_get_state("shift_notes", "Welcome to your shift."))
+        tk.Button(notes_card, text="Save Notes", bg=ACCENT, fg=BG,
+                  font=FONT_BUTTON, bd=0,
+                  command=lambda: self._admin_save_notes(
+                      notes_txt.get("1.0", "end"))
+                  ).pack(fill="x", padx=10, pady=(6, 10))
+
         # ---- Staff Roster ----
         roster = tk.Frame(host, bg=PANEL)
         roster.pack(fill="x", padx=14, pady=8)
@@ -1302,6 +1321,14 @@ class PharmacyApp:
             conn.close()
         db_log_audit(self.user, "Inventory remove: %s" % drug)
         self.navigate_to("admin")
+
+    def _admin_save_notes(self, text):
+        # T7.2 — persist shift notes via db_set_state. Strip the
+        # trailing newline the Tk Text widget appends.
+        cleaned = (text or "").strip()
+        db_set_state("shift_notes", cleaned)
+        db_log_audit(self.user, "Updated shift notes")
+        messagebox.showinfo("Shift Notes", "Saved.")
 
     def panel_tpr(self):
         # T5.4 — TPR Insurance Guide. Static panel; verbatim 5 rows from
