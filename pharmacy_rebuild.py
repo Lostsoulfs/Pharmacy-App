@@ -745,6 +745,16 @@ def db_restore(backup_path):
         src.close()
 
 
+def _date_is_valid(s):
+    """A4 helper. Returns True iff s parses as a real calendar date
+    under %Y-%m-%d. Used after regex check enforces zero-padding."""
+    try:
+        datetime.strptime(s, "%Y-%m-%d")
+        return True
+    except (ValueError, TypeError):
+        return False
+
+
 def db_open_partials_count():
     """T7.15. Count of PartialFills rows where resolved=0."""
     conn = get_db_connection()
@@ -2107,6 +2117,20 @@ class PharmacyApp:
         if not drug or not exp:
             messagebox.showerror(
                 "Inventory", "Drug name and exp date required.")
+            return
+        # A4 fix: validate exp_date as strict zero-padded ISO
+        # YYYY-MM-DD. Without strict validation '2026-5-19' would
+        # pass strptime but break ISO string compare in T7.1 query
+        # ('5' > '0' in ASCII -> miscategorized). Regex forces
+        # zero-padding; strptime then enforces leap-year / month-
+        # length / day-of-month correctness.
+        import re as _re
+        if (not _re.fullmatch(r"\d{4}-\d{2}-\d{2}", exp)
+                or not _date_is_valid(exp)):
+            messagebox.showerror(
+                "Inventory",
+                "Expiration date must be YYYY-MM-DD "
+                "(zero-padded, e.g. 2027-03-15).")
             return
         conn = get_db_connection()
         try:
