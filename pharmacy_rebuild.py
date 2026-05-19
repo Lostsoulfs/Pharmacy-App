@@ -1332,7 +1332,116 @@ class PharmacyApp:
                      anchor="w").pack(side="left", fill="x", expand=True)
 
     def panel_partials(self):
-        self._placeholder("Partial Fill Ledger", "T5")
+        # T5.6 — Partial Fill Ledger. DB-backed. Lists open partials
+        # (resolved=0), add new partial (drug, qty_owed, patient, date),
+        # resolve button per row. Uses PartialFills table (schema in
+        # init_db). Parametrized writes. Audit-logged.
+        host = self.make_scrollable(self.content_host)
+        tk.Label(host, text="Partial Fill Ledger", bg=BG, fg=TEXT,
+                 font=FONT_HEADING).pack(pady=12)
+
+        # ---- open partials list ----
+        list_card = tk.Frame(host, bg=PANEL)
+        list_card.pack(fill="x", padx=14, pady=8)
+        tk.Label(list_card, text="Open Partials", bg=PANEL, fg=ACCENT,
+                 font=FONT_BUTTON).pack(anchor="w", padx=10, pady=(8, 4))
+        conn = get_db_connection()
+        try:
+            rows = conn.execute(
+                "SELECT id, drug, qty_owed, patient, date "
+                "FROM PartialFills WHERE resolved=0 ORDER BY date DESC, id DESC"
+            ).fetchall()
+        finally:
+            conn.close()
+        if not rows:
+            tk.Label(list_card,
+                     text="All partials resolved. Inventory is clear.",
+                     bg=PANEL, fg=DIM, font=FONT_BODY).pack(
+                         anchor="w", padx=14, pady=(2, 10))
+        for r in rows:
+            row = tk.Frame(list_card, bg=PANEL)
+            row.pack(fill="x", padx=10, pady=4)
+            tk.Label(
+                row,
+                text="%s  —  qty owed: %s\n%s  (%s)" % (
+                    r["drug"], r["qty_owed"], r["patient"], r["date"]),
+                bg=PANEL, fg=TEXT, font=FONT_BODY, justify="left",
+                anchor="w", wraplength=240).pack(
+                    side="left", fill="x", expand=True, padx=4)
+            tk.Button(row, text="Resolve", bg=GREEN, fg=BG,
+                      font=FONT_BUTTON, bd=0,
+                      command=lambda pid=r["id"]:
+                          self._partial_resolve(pid)
+                      ).pack(side="right", padx=4)
+
+        # ---- add new partial ----
+        add_card = tk.Frame(host, bg=PANEL)
+        add_card.pack(fill="x", padx=14, pady=8)
+        tk.Label(add_card, text="Add Partial", bg=PANEL, fg=ACCENT,
+                 font=FONT_BUTTON).pack(anchor="w", padx=10, pady=(8, 4))
+
+        def fld(label):
+            r = tk.Frame(add_card, bg=PANEL)
+            r.pack(fill="x", padx=10, pady=3)
+            tk.Label(r, text=label, bg=PANEL, fg=TEXT, font=FONT_BODY,
+                     width=12, anchor="w").pack(side="left")
+            e = tk.Entry(r, font=FONT_BODY, bg=BG, fg=TEXT,
+                         insertbackground=TEXT)
+            e.pack(side="left", fill="x", expand=True, ipady=4)
+            return e
+
+        e_drug = fld("Drug")
+        e_qty = fld("Qty owed")
+        e_pat = fld("Patient")
+        e_date = fld("Date")
+        e_date.insert(0, datetime.now().strftime("%Y-%m-%d"))
+
+        tk.Button(add_card, text="Add to Ledger", bg=ACCENT, fg=BG,
+                  font=FONT_BUTTON, bd=0,
+                  command=lambda: self._partial_add(
+                      e_drug.get(), e_qty.get(),
+                      e_pat.get(), e_date.get())
+                  ).pack(fill="x", padx=10, pady=(6, 10))
+
+    def _partial_add(self, drug, qty, patient, date):
+        drug = (drug or "").strip()
+        patient = (patient or "").strip()
+        date = (date or "").strip()
+        try:
+            qty_int = int(str(qty).strip())
+            if qty_int <= 0:
+                raise ValueError
+        except (ValueError, TypeError):
+            messagebox.showerror(
+                "Partial", "Qty owed must be a positive integer.")
+            return
+        if not drug or not patient or not date:
+            messagebox.showerror(
+                "Partial", "Drug, patient, and date are required.")
+            return
+        conn = get_db_connection()
+        try:
+            conn.execute(
+                "INSERT INTO PartialFills "
+                "(drug, qty_owed, patient, date) VALUES (?, ?, ?, ?)",
+                (drug, qty_int, patient, date))
+            conn.commit()
+        finally:
+            conn.close()
+        db_log_audit(self.user,
+                     "Logged partial: %s for %s" % (drug, patient))
+        self.navigate_to("partials")
+
+    def _partial_resolve(self, pid):
+        conn = get_db_connection()
+        try:
+            conn.execute(
+                "UPDATE PartialFills SET resolved=1 WHERE id=?", (pid,))
+            conn.commit()
+        finally:
+            conn.close()
+        db_log_audit(self.user, "Resolved partial (ID: %s)" % pid)
+        self.navigate_to("partials")
 
     def panel_vaccines(self):
         host = self.make_scrollable(self.content_host)
