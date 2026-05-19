@@ -1301,7 +1301,35 @@ class PharmacyApp:
                      anchor="w").pack(anchor="w", padx=10, pady=(2, 0))
 
     def panel_hotkeys(self):
-        self._placeholder("IC+ Hotkeys", "T5")
+        # T5.5 — IC+ Hotkeys. Static panel; verbatim 8 key/description
+        # pairs from v13 (panel_hotkeys lines 1208-1213). Software workflow
+        # reference, not clinical/law data — no UNVERIFIED banner per
+        # ADR-C05 scope.
+        host = self.make_scrollable(self.content_host)
+        tk.Label(host, text="Intercom Plus (IC+) Hotkeys",
+                 bg=BG, fg=TEXT, font=FONT_HEADING).pack(pady=12)
+
+        keys = [
+            ("F9", "Patient Search"),
+            ("F12", "Release to POS / Finish"),
+            ("ALT + O", "Options Menu"),
+            ("ALT + P", "Product Detail"),
+            ("CTRL + X", "Exception Queue"),
+            ("CTRL + S", "Scan Rx / Document"),
+            ("Shift + F1", "TeamRx / Help"),
+            ("ALT + R", "Ready Status Check"),
+        ]
+        card = tk.Frame(host, bg=PANEL)
+        card.pack(fill="x", padx=14, pady=8)
+        for k, desc in keys:
+            row = tk.Frame(card, bg=PANEL)
+            row.pack(fill="x", padx=10, pady=4)
+            tk.Label(row, text=k, bg=PANEL, fg=GREEN,
+                     font=FONT_BUTTON, width=12, anchor="w").pack(
+                         side="left")
+            tk.Label(row, text=desc, bg=PANEL, fg=TEXT,
+                     font=FONT_BODY, wraplength=240, justify="left",
+                     anchor="w").pack(side="left", fill="x", expand=True)
 
     def panel_partials(self):
         self._placeholder("Partial Fill Ledger", "T5")
