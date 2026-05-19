@@ -1466,14 +1466,24 @@ class PharmacyApp:
                   ).pack(fill="x", padx=10, pady=(0, 10))
 
     def panel_law(self):
-        # T5.2 — panel_law. Static panel; verbatim MS law bullets from v13
-        # (lines 1174-1182). ADR-C05: UNVERIFIED banner required.
+        # T5.2 + T7.19 — panel_law. Verbatim v13 bullets, UNVERIFIED
+        # banner per ADR-C05, plus citation to MS Board of Pharmacy
+        # authoritative source (Nathan, pharmacist, 2026-05-19).
         host = self.make_scrollable(self.content_host)
         tk.Label(host, text="Mississippi Pharmacy Law & Safety",
                  bg=BG, fg=TEXT, font=FONT_HEADING).pack(pady=12)
         tk.Label(host,
-                 text="⚠ UNVERIFIED DATA — v13 source, not externally validated.",
+                 text=("⚠ UNVERIFIED — bullets carried from v13 "
+                       "source. Not yet cross-checked against the "
+                       "official text below."),
                  bg=BG, fg=RED, font=FONT_BODY, wraplength=360,
+                 justify="left").pack(padx=14, pady=(0, 4))
+        tk.Label(host,
+                 text=("Source of truth: Mississippi Board of "
+                       "Pharmacy Regulations 4-24-26\n"
+                       "mbp.ms.gov/sites/default/files/2026-04/"
+                       "Regulations%204-24-26.pdf"),
+                 bg=BG, fg=DIM, font=FONT_BODY, wraplength=360,
                  justify="left").pack(padx=14, pady=(0, 8))
 
         bullets = [
