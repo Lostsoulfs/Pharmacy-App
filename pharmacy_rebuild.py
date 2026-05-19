@@ -236,6 +236,40 @@ def verify_dea_logic(dea):
     return check == dea[-1]
 
 
+def dea_registrant_type(dea):
+    """T7.20. Return (type_label, is_prescriber) tuple for a DEA
+    number based on the first-letter prefix per DEA Diversion Control
+    registrant codes (21 CFR 1301). Returns (None, False) if input
+    is malformed.
+
+    Prefix codes (cited from DEA Practitioner's Manual):
+      A / B / G  -> Practitioner / Hospital (prescriber)
+      M          -> Mid-level practitioner: NP, PA, etc (prescriber)
+      F          -> Manufacturer (NOT a prescriber)
+      P / R      -> Distributor / Researcher (NOT a prescriber)
+      X          -> Suboxone / DATA-2000 waivered practitioner
+                    (prescriber, narrow scope)
+      Other      -> Unknown / unmapped
+    """
+    if not dea or not isinstance(dea, str):
+        return (None, False)
+    cleaned = dea.strip().upper()
+    if len(cleaned) < 1:
+        return (None, False)
+    prefix = cleaned[0]
+    mapping = {
+        "A": ("Practitioner / Hospital", True),
+        "B": ("Practitioner / Hospital", True),
+        "G": ("Practitioner / Hospital", True),
+        "M": ("Mid-Level Practitioner (NP/PA)", True),
+        "F": ("Manufacturer", False),
+        "P": ("Distributor / Researcher", False),
+        "R": ("Researcher", False),
+        "X": ("DATA-2000 / Suboxone Practitioner", True),
+    }
+    return mapping.get(prefix, ("Unknown prefix", False))
+
+
 def calc_days_supply_logic(quantity, units_per_day):
     """EARS L-DS-01/02 (+ F-07 fix, 2026-05-19).
     int() floor = round-down = dominant billing convention.
@@ -1456,10 +1490,24 @@ class PharmacyApp:
         dea_res.pack(pady=8)
 
         def run_dea():
-            if verify_dea_logic(dea_e.get()):
-                dea_res.config(text="VALID checksum", fg=GREEN)
-            else:
+            raw = dea_e.get()
+            checksum_ok = verify_dea_logic(raw)
+            type_label, is_prescriber = dea_registrant_type(raw)
+            if not checksum_ok:
                 dea_res.config(text="INVALID / forgery flag", fg=RED)
+                return
+            # T7.20 — registrant-type flag. Non-prescriber prefix on a
+            # dispensing prescription is itself a forgery signal.
+            if type_label and not is_prescriber:
+                dea_res.config(
+                    text="Checksum OK — but %s — NOT a prescriber, "
+                         "VERIFY before dispensing" % type_label,
+                    fg=RED)
+            elif type_label:
+                dea_res.config(
+                    text="VALID — %s" % type_label, fg=GREEN)
+            else:
+                dea_res.config(text="VALID checksum", fg=GREEN)
 
         tk.Button(dea, text="Verify", bg=ACCENT, fg=BG,
                   font=FONT_BUTTON, bd=0, command=run_dea
