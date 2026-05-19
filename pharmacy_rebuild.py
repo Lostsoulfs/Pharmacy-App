@@ -533,6 +533,37 @@ def db_perf(tech):
         conn.close()
 
 
+def db_export_audit_log():
+    """T7.9. Export the entire AuditLog (not just latest 50, not the
+    UI filter view — full table) to a plain-text file next to the DB.
+    Returns the absolute path written. Format: header block + one
+    tab-separated row per entry, oldest first (chronological)."""
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(
+            "SELECT timestamp, user, action FROM AuditLog "
+            "ORDER BY id ASC"
+        ).fetchall()
+    finally:
+        conn.close()
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    path = os.path.join(
+        os.path.expanduser("~"),
+        "pharmacy_audit_export_%s.txt" % stamp)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write("Pharmacy Audit Log Export\n")
+        fh.write("Generated: %s\n" % datetime.now().isoformat(
+            timespec="seconds"))
+        fh.write("Total entries: %d\n" % len(rows))
+        fh.write("Source DB: %s\n" % DB_FILE)
+        fh.write("---\n")
+        fh.write("timestamp\tuser\taction\n")
+        for r in rows:
+            fh.write("%s\t%s\t%s\n" % (
+                r["timestamp"], r["user"], r["action"]))
+    return path
+
+
 def db_mastered_brands(tech, brand_list):
     """T7.8. Return the subset of brand_list that this tech has
     mastered (per PTCBMastery). Empty input -> set(). Single
@@ -1491,6 +1522,13 @@ class PharmacyApp:
                      justify="left",
                      anchor="w").pack(anchor="w", padx=14, pady=1)
 
+        # T7.9 — Export. Always exports the FULL AuditLog table, not
+        # just the latest-50 view or the current filter.
+        tk.Button(log_f, text="Export Full Audit Log",
+                  bg=ACCENT, fg=BG, font=FONT_BUTTON, bd=0,
+                  command=self._admin_export_audit
+                  ).pack(fill="x", padx=10, pady=(10, 10))
+
     # ---- admin mutation handlers (T5.3) ----
     def _admin_add_tech(self, name, pin):
         name = (name or "").strip()
@@ -1562,6 +1600,23 @@ class PharmacyApp:
         # stored, so user-typed % is treated as literal-ish through the
         # parameterized binding. No filter audit-log entry (would spam).
         self._audit_filter = (text or "").strip()
+        self.navigate_to("admin")
+
+    def _admin_export_audit(self):
+        # T7.9 — export to plain text. Audit-logs the export action
+        # itself (and the destination path) so the export is itself
+        # traceable. messagebox confirms the path Scott / inspector
+        # can find via Pydroid 3 Files browser.
+        try:
+            path = db_export_audit_log()
+        except OSError as exc:
+            messagebox.showerror(
+                "Export Failed", "Could not write file:\n%s" % exc)
+            return
+        db_log_audit(self.user, "Exported audit log to %s" % path)
+        messagebox.showinfo(
+            "Export Complete",
+            "Audit log written to:\n%s" % path)
         self.navigate_to("admin")
 
     def panel_tpr(self):
