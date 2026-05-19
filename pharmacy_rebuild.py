@@ -533,6 +533,32 @@ def db_perf(tech):
         conn.close()
 
 
+def db_weak_spots(tech, limit=5):
+    """T7.5. Return list of (drug_name, missed, total, miss_pct) for
+    the drugs this tech misses most, capped at `limit`. Sourced from
+    MasteryStats. Rows with total=0 excluded (no data signal).
+    Ordering: most-missed-count first, then highest miss-rate, then
+    drug_name. Empty result -> []."""
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(
+            "SELECT drug_name, correct, total FROM MasteryStats "
+            "WHERE tech_name=? AND total > 0",
+            (tech,)
+        ).fetchall()
+    finally:
+        conn.close()
+    weak = []
+    for r in rows:
+        missed = r["total"] - r["correct"]
+        if missed <= 0:
+            continue
+        miss_pct = int((missed / r["total"]) * 100)
+        weak.append((r["drug_name"], missed, r["total"], miss_pct))
+    weak.sort(key=lambda x: (-x[1], -x[3], x[0]))
+    return weak[:limit]
+
+
 def ptcb_readiness(tech):
     """T7.3. Return (mastered, total, pct_int) for a tech's PTCB
     readiness. mastered = COUNT(*) FROM PTCBMastery WHERE tech_name=?
@@ -842,6 +868,32 @@ class PharmacyApp:
                            else "Keep drilling Top 200 quiz."),
                      bg=PANEL, fg=DIM, font=FONT_BODY).pack(
                          anchor="w", padx=10, pady=(0, 10))
+
+            # T7.5 — Weak Spots: top 5 drugs this tech misses most.
+            weak = db_weak_spots(self.user, limit=5)
+            wf = tk.Frame(host, bg=PANEL)
+            wf.pack(fill="x", padx=16, pady=8)
+            tk.Label(wf, text="Weak Spots — Drill These",
+                     bg=PANEL, fg=ACCENT, font=FONT_BUTTON).pack(
+                         anchor="w", padx=10, pady=(8, 4))
+            if not weak:
+                tk.Label(wf,
+                         text="No miss data yet. Run a quiz to "
+                              "see weak spots.",
+                         bg=PANEL, fg=DIM, font=FONT_BODY,
+                         wraplength=320, justify="left").pack(
+                             anchor="w", padx=14, pady=(0, 10))
+            else:
+                for drug, missed, total, miss_pct in weak:
+                    tk.Label(
+                        wf,
+                        text="%s  —  missed %d/%d  (%d%%)" % (
+                            drug, missed, total, miss_pct),
+                        bg=PANEL, fg=RED if miss_pct >= 50 else TEXT,
+                        font=FONT_BODY, anchor="w",
+                        wraplength=320, justify="left"
+                    ).pack(anchor="w", padx=14, pady=2)
+                tk.Frame(wf, bg=PANEL, height=6).pack()
 
     def panel_tools(self):
         host = self.make_scrollable(self.content_host)
