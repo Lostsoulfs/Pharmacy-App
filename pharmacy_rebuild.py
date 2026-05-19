@@ -1416,6 +1416,12 @@ class PharmacyApp:
             tk.Label(row, text=t, bg=PANEL, fg=TEXT, font=FONT_BODY,
                      anchor="w").pack(side="left", fill="x", expand=True,
                                        padx=4)
+            # T7.13 — Audit shortcut: sets audit filter to this tech
+            # and redraws. Compounds with T7.7's filter mechanism.
+            tk.Button(row, text="Audit", bg=DIM, fg=BG,
+                      font=FONT_BUTTON, bd=0,
+                      command=lambda n=t: self._admin_audit_filter(n)
+                      ).pack(side="right", padx=4)
             tk.Button(row, text="Remove", bg=RED, fg=BG,
                       font=FONT_BUTTON, bd=0,
                       command=lambda n=t: self._admin_remove_tech(n)
