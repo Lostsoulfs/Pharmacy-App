@@ -1082,7 +1082,188 @@ class PharmacyApp:
                      anchor="w").pack(side="left", fill="x", expand=True)
 
     def panel_admin(self):
-        self._placeholder("Admin Control", "T5")
+        # T5.3 — admin control. DB-backed. Admin-only guard.
+        # Reuses db_add_user / db_remove_user / db_list_users / db_log_audit /
+        # is_strong_pin. Inventory + AuditLog read inline (no helper churn).
+        host = self.make_scrollable(self.content_host)
+        tk.Label(host, text="Admin Control", bg=BG, fg=TEXT,
+                 font=FONT_HEADING).pack(pady=12)
+        if not self.is_admin:
+            tk.Label(host, text="Admin only.", bg=BG, fg=RED,
+                     font=FONT_BUTTON).pack(pady=20)
+            return
+
+        # ---- Staff Roster ----
+        roster = tk.Frame(host, bg=PANEL)
+        roster.pack(fill="x", padx=14, pady=8)
+        tk.Label(roster, text="Staff Roster", bg=PANEL, fg=ACCENT,
+                 font=FONT_BUTTON).pack(anchor="w", padx=10, pady=(8, 4))
+        admins, techs = db_list_users()
+        for a in admins:
+            tk.Label(roster, text="%s  (admin)" % a, bg=PANEL, fg=DIM,
+                     font=FONT_BODY, anchor="w").pack(
+                         anchor="w", padx=14, pady=2)
+        for t in techs:
+            row = tk.Frame(roster, bg=PANEL)
+            row.pack(fill="x", padx=10, pady=2)
+            tk.Label(row, text=t, bg=PANEL, fg=TEXT, font=FONT_BODY,
+                     anchor="w").pack(side="left", fill="x", expand=True,
+                                       padx=4)
+            tk.Button(row, text="Remove", bg=RED, fg=BG,
+                      font=FONT_BUTTON, bd=0,
+                      command=lambda n=t: self._admin_remove_tech(n)
+                      ).pack(side="right", padx=4)
+        if not techs:
+            tk.Label(roster, text="(no technicians)", bg=PANEL, fg=DIM,
+                     font=FONT_BODY).pack(anchor="w", padx=14, pady=2)
+
+        add_f = tk.Frame(roster, bg=PANEL)
+        add_f.pack(fill="x", padx=10, pady=(8, 10))
+        tk.Label(add_f, text="Add Technician:", bg=PANEL, fg=TEXT,
+                 font=FONT_BODY).pack(anchor="w")
+        name_e = tk.Entry(add_f, font=FONT_BODY, bg=BG, fg=TEXT,
+                          insertbackground=TEXT)
+        name_e.pack(fill="x", pady=2, ipady=4)
+        tk.Label(add_f, text="Optional PIN (min 4):", bg=PANEL, fg=DIM,
+                 font=FONT_BODY).pack(anchor="w", pady=(4, 0))
+        pin_e = tk.Entry(add_f, font=FONT_BODY, bg=BG, fg=TEXT,
+                         insertbackground=TEXT, show="*")
+        pin_e.pack(fill="x", pady=2, ipady=4)
+        tk.Button(add_f, text="Add Tech", bg=ACCENT, fg=BG,
+                  font=FONT_BUTTON, bd=0,
+                  command=lambda: self._admin_add_tech(
+                      name_e.get(), pin_e.get())
+                  ).pack(fill="x", pady=(6, 0))
+
+        # ---- Inventory / Expiration ----
+        inv = tk.Frame(host, bg=PANEL)
+        inv.pack(fill="x", padx=14, pady=8)
+        tk.Label(inv, text="Inventory / Expiration", bg=PANEL, fg=ACCENT,
+                 font=FONT_BUTTON).pack(anchor="w", padx=10, pady=(8, 4))
+        conn = get_db_connection()
+        try:
+            inv_rows = conn.execute(
+                "SELECT drug_name, exp_date FROM Inventory "
+                "ORDER BY exp_date, drug_name"
+            ).fetchall()
+        finally:
+            conn.close()
+        if not inv_rows:
+            tk.Label(inv, text="(no inventory)", bg=PANEL, fg=DIM,
+                     font=FONT_BODY).pack(anchor="w", padx=14, pady=2)
+        for r in inv_rows:
+            row = tk.Frame(inv, bg=PANEL)
+            row.pack(fill="x", padx=10, pady=2)
+            tk.Label(row,
+                     text="%s — exp %s" % (r["drug_name"], r["exp_date"]),
+                     bg=PANEL, fg=TEXT, font=FONT_BODY,
+                     anchor="w").pack(side="left", fill="x", expand=True,
+                                       padx=4)
+            tk.Button(row, text="Remove", bg=RED, fg=BG,
+                      font=FONT_BUTTON, bd=0,
+                      command=lambda d=r["drug_name"]:
+                          self._admin_remove_inv(d)
+                      ).pack(side="right", padx=4)
+
+        add_inv = tk.Frame(inv, bg=PANEL)
+        add_inv.pack(fill="x", padx=10, pady=(8, 10))
+        tk.Label(add_inv, text="Add Drug:", bg=PANEL, fg=TEXT,
+                 font=FONT_BODY).pack(anchor="w")
+        drug_e = tk.Entry(add_inv, font=FONT_BODY, bg=BG, fg=TEXT,
+                          insertbackground=TEXT)
+        drug_e.pack(fill="x", pady=2, ipady=4)
+        tk.Label(add_inv, text="Expiration date (YYYY-MM-DD):",
+                 bg=PANEL, fg=DIM, font=FONT_BODY).pack(
+                     anchor="w", pady=(4, 0))
+        exp_e = tk.Entry(add_inv, font=FONT_BODY, bg=BG, fg=TEXT,
+                         insertbackground=TEXT)
+        exp_e.pack(fill="x", pady=2, ipady=4)
+        tk.Button(add_inv, text="Add", bg=ACCENT, fg=BG,
+                  font=FONT_BUTTON, bd=0,
+                  command=lambda: self._admin_add_inv(
+                      drug_e.get(), exp_e.get())
+                  ).pack(fill="x", pady=(6, 0))
+
+        # ---- Audit Log Viewer ----
+        log_f = tk.Frame(host, bg=PANEL)
+        log_f.pack(fill="x", padx=14, pady=8)
+        tk.Label(log_f, text="Audit Log (latest 50)", bg=PANEL, fg=ACCENT,
+                 font=FONT_BUTTON).pack(anchor="w", padx=10, pady=(8, 4))
+        conn = get_db_connection()
+        try:
+            entries = conn.execute(
+                "SELECT timestamp, user, action FROM AuditLog "
+                "ORDER BY id DESC LIMIT 50"
+            ).fetchall()
+        finally:
+            conn.close()
+        if not entries:
+            tk.Label(log_f, text="(empty)", bg=PANEL, fg=DIM,
+                     font=FONT_BODY).pack(anchor="w", padx=14, pady=(2, 10))
+        for e in entries:
+            tk.Label(log_f,
+                     text="%s  %s  —  %s" % (
+                         e["timestamp"], e["user"], e["action"]),
+                     bg=PANEL, fg=TEXT, font=FONT_BODY, wraplength=340,
+                     justify="left",
+                     anchor="w").pack(anchor="w", padx=14, pady=1)
+
+    # ---- admin mutation handlers (T5.3) ----
+    def _admin_add_tech(self, name, pin):
+        name = (name or "").strip()
+        pin = (pin or "").strip()
+        if not name:
+            messagebox.showerror("Add Tech", "Name required.")
+            return
+        if pin:
+            ok, reason = is_strong_pin(pin)
+            if not ok:
+                messagebox.showerror("Add Tech", reason)
+                return
+        if not db_add_user(name, "tech", pin if pin else None):
+            messagebox.showerror(
+                "Add Tech", "Name is reserved or invalid.")
+            return
+        db_log_audit(self.user, "Added tech: %s" % name)
+        self.navigate_to("admin")
+
+    def _admin_remove_tech(self, name):
+        if not messagebox.askyesno(
+                "Remove Tech",
+                "Remove '%s' and their scores/mastery?" % name):
+            return
+        db_remove_user(name)
+        db_log_audit(self.user, "Removed tech: %s" % name)
+        self.navigate_to("admin")
+
+    def _admin_add_inv(self, drug, exp):
+        drug = (drug or "").strip()
+        exp = (exp or "").strip()
+        if not drug or not exp:
+            messagebox.showerror(
+                "Inventory", "Drug name and exp date required.")
+            return
+        conn = get_db_connection()
+        try:
+            conn.execute(
+                "INSERT OR REPLACE INTO Inventory "
+                "(drug_name, exp_date) VALUES (?, ?)", (drug, exp))
+            conn.commit()
+        finally:
+            conn.close()
+        db_log_audit(self.user, "Inventory add: %s exp %s" % (drug, exp))
+        self.navigate_to("admin")
+
+    def _admin_remove_inv(self, drug):
+        conn = get_db_connection()
+        try:
+            conn.execute(
+                "DELETE FROM Inventory WHERE drug_name=?", (drug,))
+            conn.commit()
+        finally:
+            conn.close()
+        db_log_audit(self.user, "Inventory remove: %s" % drug)
+        self.navigate_to("admin")
 
     def panel_tpr(self):
         self._placeholder("TPR Insurance Guide", "T5")
