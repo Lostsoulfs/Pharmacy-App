@@ -1266,7 +1266,39 @@ class PharmacyApp:
         self.navigate_to("admin")
 
     def panel_tpr(self):
-        self._placeholder("TPR Insurance Guide", "T5")
+        # T5.4 — TPR Insurance Guide. Static panel; verbatim 5 rows from
+        # v13 (panel_tpr_resolver lines 1190-1196). ADR-C05: UNVERIFIED.
+        host = self.make_scrollable(self.content_host)
+        tk.Label(host, text="TPR (Third Party Rejection) Guide",
+                 bg=BG, fg=TEXT, font=FONT_HEADING).pack(pady=12)
+        tk.Label(host,
+                 text="⚠ UNVERIFIED DATA — v13 source, not externally validated.",
+                 bg=BG, fg=RED, font=FONT_BODY, wraplength=360,
+                 justify="left").pack(padx=14, pady=(0, 8))
+
+        tpr_data = [
+            ("RTS (Refill Too Soon)",
+             "Patient has remaining supply. Check last fill date + 75% usage."),
+            ("PA (Prior Auth)",
+             "Insurance requires doctor's justification. Fax MD and notify patient."),
+            ("Plan Exclusion",
+             "Drug not covered by plan. Suggest generic or discount card."),
+            ("NDC Not Covered",
+             "Specific brand/size not on formulary. Switch to covered NDC."),
+            ("M/I ID or Group",
+             "Insurance info is outdated. Ask patient for new card or use Findins."),
+        ]
+        card = tk.Frame(host, bg=PANEL)
+        card.pack(fill="x", padx=14, pady=8)
+        for code, detail in tpr_data:
+            row = tk.Frame(card, bg=PANEL)
+            row.pack(fill="x", padx=10, pady=6)
+            tk.Label(row, text=code, bg=PANEL, fg=ACCENT,
+                     font=FONT_BUTTON, anchor="w").pack(
+                         anchor="w", padx=2)
+            tk.Label(row, text=detail, bg=PANEL, fg=TEXT,
+                     font=FONT_BODY, wraplength=320, justify="left",
+                     anchor="w").pack(anchor="w", padx=10, pady=(2, 0))
 
     def panel_hotkeys(self):
         self._placeholder("IC+ Hotkeys", "T5")
