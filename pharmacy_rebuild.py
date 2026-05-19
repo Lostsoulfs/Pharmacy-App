@@ -533,6 +533,25 @@ def db_perf(tech):
         conn.close()
 
 
+def db_expired_inventory(today=None):
+    """T7.11. Return list of (drug_name, exp_date) for Inventory rows
+    where exp_date < today (strictly past, NOT upcoming). today defaults
+    to datetime.now() in ISO YYYY-MM-DD. Sorted oldest expiration
+    first. Empty result -> []."""
+    if today is None:
+        today = datetime.now().strftime("%Y-%m-%d")
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(
+            "SELECT drug_name, exp_date FROM Inventory "
+            "WHERE exp_date < ? ORDER BY exp_date ASC, drug_name ASC",
+            (today,)
+        ).fetchall()
+    finally:
+        conn.close()
+    return [(r["drug_name"], r["exp_date"]) for r in rows]
+
+
 def db_backup():
     """T7.10. Online SQLite backup via sqlite3.Connection.backup API.
     Safe with WAL and concurrent readers. Writes to a timestamped
@@ -822,6 +841,18 @@ class PharmacyApp:
         db_log_audit(name, "Logged In")
         self._build_shell()
         self.navigate_to("home")
+        # T7.11 — Login-time expired-stock alert. Already-expired items
+        # only (not upcoming — those live on the Home card). All users
+        # see it so a tech doesn't pull expired stock off the shelf.
+        expired = db_expired_inventory()
+        if expired:
+            lines = ["%s  —  expired %s" % (d, e) for d, e in expired]
+            shown = lines[:10]
+            if len(lines) > len(shown):
+                shown.append("...and %d more." % (len(lines) - len(shown)))
+            messagebox.showwarning(
+                "Expired Stock on Shelf",
+                "Do not dispense:\n\n" + "\n".join(shown))
 
     def logout(self):
         if self.user:
