@@ -533,6 +533,47 @@ def db_perf(tech):
         conn.close()
 
 
+def db_list_backups():
+    """T7.14. Return list of (filename, abs_path, mtime) for files
+    matching pharmacy_backup_*.db in the home dir, newest first."""
+    home = os.path.expanduser("~")
+    out = []
+    try:
+        for name in os.listdir(home):
+            if (name.startswith("pharmacy_backup_")
+                    and name.endswith(".db")):
+                full = os.path.join(home, name)
+                try:
+                    mtime = os.path.getmtime(full)
+                except OSError:
+                    continue
+                out.append((name, full, mtime))
+    except OSError:
+        return []
+    out.sort(key=lambda x: x[2], reverse=True)
+    return out
+
+
+def db_restore(backup_path):
+    """T7.14. Replace the live DB with the contents of backup_path
+    via SQLite online backup API (in reverse direction). The current
+    DB is fully overwritten. Caller MUST drop in-app references to
+    any open handles and force the user to re-login.
+
+    Raises sqlite3.Error / OSError on failure. On failure the live DB
+    is left intact (online backup is transactional)."""
+    src = sqlite3.connect(backup_path, timeout=15.0)
+    try:
+        dst = sqlite3.connect(DB_FILE, timeout=15.0)
+        try:
+            with dst:
+                src.backup(dst)
+        finally:
+            dst.close()
+    finally:
+        src.close()
+
+
 def db_expired_inventory(today=None):
     """T7.11. Return list of (drug_name, exp_date) for Inventory rows
     where exp_date < today (strictly past, NOT upcoming). today defaults
@@ -1628,6 +1669,35 @@ class PharmacyApp:
                   command=self._admin_backup_db
                   ).pack(fill="x", padx=10, pady=(0, 10))
 
+        # ---- Backups (T7.14) ----
+        # Lists pharmacy_backup_*.db files in home dir, newest first,
+        # each with a Restore button. Restore is destructive: prompts
+        # before overwriting live DB, then forces logout.
+        bk = tk.Frame(host, bg=PANEL)
+        bk.pack(fill="x", padx=14, pady=8)
+        tk.Label(bk, text="Backups (Restore)", bg=PANEL, fg=ACCENT,
+                 font=FONT_BUTTON).pack(anchor="w", padx=10, pady=(8, 4))
+        backups = db_list_backups()
+        if not backups:
+            tk.Label(bk,
+                     text="(no backups — use 'Backup Database' above)",
+                     bg=PANEL, fg=DIM, font=FONT_BODY).pack(
+                         anchor="w", padx=14, pady=(2, 10))
+        for fname, fpath, _ in backups:
+            row = tk.Frame(bk, bg=PANEL)
+            row.pack(fill="x", padx=10, pady=2)
+            tk.Label(row, text=fname, bg=PANEL, fg=TEXT,
+                     font=FONT_BODY, anchor="w",
+                     wraplength=240, justify="left").pack(
+                         side="left", fill="x", expand=True, padx=4)
+            tk.Button(row, text="Restore", bg=RED, fg=BG,
+                      font=FONT_BUTTON, bd=0,
+                      command=lambda p=fpath, n=fname:
+                          self._admin_restore_db(p, n)
+                      ).pack(side="right", padx=4)
+        if backups:
+            tk.Frame(bk, bg=PANEL, height=6).pack()
+
     # ---- admin mutation handlers (T5.3) ----
     def _admin_add_tech(self, name, pin):
         name = (name or "").strip()
@@ -1739,6 +1809,36 @@ class PharmacyApp:
             "Backup Complete",
             "Database snapshot written to:\n%s" % path)
         self.navigate_to("admin")
+
+    def _admin_restore_db(self, backup_path, backup_name):
+        # T7.14 — restore from snapshot. Destructive: overwrites the
+        # live DB. Strong confirmation. Audit-logs the intent BEFORE
+        # the restore (because the restored DB may not contain this
+        # entry afterward). Forces logout — in-app state may not
+        # match the new DB (different users, different lockout, etc).
+        if not messagebox.askyesno(
+                "Restore Database",
+                "OVERWRITE the live database with:\n"
+                "  %s\n\n"
+                "Current data will be REPLACED with the snapshot. "
+                "This cannot be undone (unless you have a newer "
+                "backup). You will be logged out.\n\n"
+                "Proceed?" % backup_name):
+            return
+        db_log_audit(self.user,
+                     "Restoring DB from %s (pre-restore mark)"
+                     % backup_name)
+        try:
+            db_restore(backup_path)
+        except (sqlite3.Error, OSError) as exc:
+            messagebox.showerror(
+                "Restore Failed",
+                "Live DB unchanged.\nError: %s" % exc)
+            return
+        messagebox.showinfo(
+            "Restore Complete",
+            "Database restored from:\n%s\n\nLogging out." % backup_name)
+        self.logout()
 
     def panel_tpr(self):
         # T5.4 — TPR Insurance Guide. Static panel; verbatim 5 rows from
