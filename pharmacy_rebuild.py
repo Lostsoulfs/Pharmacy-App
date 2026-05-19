@@ -27,7 +27,13 @@ from datetime import datetime, timedelta
 # ============================================================
 # S1 — SYSTEM CONSTANTS & CONFIGURATION
 # ============================================================
-MAX_LOG_ENTRIES = 500
+MAX_LOG_ENTRIES = 10000  # A7 fix 2026-05-19: bumped from 500.
+# Compliance use case: state board "show me 6 months of activity".
+# Estimated load: 30-50 audit rows/day (logins, inventory, partials,
+# exports, etc.) × ~180 days = ~7,200 rows. 10,000 covers 6mo with
+# margin. DB cost: ~1 MB for 10k rows (timestamp+name+action). Phone
+# storage trivial. Future ADR may revisit if multi-store / multi-
+# pharmacist scaling enters scope.
 LOCKOUT_THRESHOLD = 3
 LOCKOUT_SECONDS = 300
 PRUNE_EVERY = 50
