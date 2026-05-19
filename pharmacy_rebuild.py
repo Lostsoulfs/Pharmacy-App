@@ -236,6 +236,28 @@ def verify_dea_logic(dea):
     return check == dea[-1]
 
 
+def calc_bsa_mosteller(height_cm, weight_kg):
+    """T7.22. Body Surface Area via Mosteller formula (NEJM 1987;
+    widely used for chemotherapy and pediatric dose calculation;
+    FDA-cited):
+
+      BSA (m²) = sqrt((height_cm × weight_kg) / 3600)
+
+    Returns float rounded to 2 decimals. Raises ValueError on bad
+    input or implausible bounds."""
+    import math
+    try:
+        h = float(height_cm)
+        w = float(weight_kg)
+    except (ValueError, TypeError):
+        raise ValueError("Invalid numeric inputs.")
+    if h <= 0 or h > 300:
+        raise ValueError("Height must be 0 < height <= 300 cm.")
+    if w <= 0 or w > 500:
+        raise ValueError("Weight must be 0 < weight <= 500 kg.")
+    return round(math.sqrt((h * w) / 3600.0), 2)
+
+
 def calc_crcl_cockcroft_gault(age, weight_kg, serum_cr_mg_dl, is_female=False):
     """T7.21. Cockcroft-Gault creatinine clearance estimate.
 
@@ -1594,6 +1616,31 @@ class PharmacyApp:
                  text="Estimate only. Not for pediatrics, extremes "
                       "of weight, or unstable renal function. "
                       "Source: Cockcroft & Gault, Nephron 1976.",
+                 bg=PANEL, fg=DIM, font=FONT_BODY,
+                 wraplength=320, justify="left").pack(
+                     anchor="w", padx=10, pady=(0, 10))
+
+        # --- T7.22: BSA (Mosteller) for chemo / pediatric dosing ---
+        bsa = section("BSA (Mosteller)")
+        bsa_h = field(bsa, "Height (cm)")
+        bsa_w = field(bsa, "Weight (kg)")
+        bsa_res = tk.Label(bsa, text="--", bg=PANEL, fg=DIM,
+                           font=FONT_BUTTON)
+        bsa_res.pack(pady=8)
+
+        def run_bsa():
+            try:
+                val = calc_bsa_mosteller(bsa_h.get(), bsa_w.get())
+                bsa_res.config(text="BSA = %s m²" % val, fg=GREEN)
+            except ValueError as e:
+                bsa_res.config(text=str(e), fg=RED)
+
+        tk.Button(bsa, text="Calculate", bg=ACCENT, fg=BG,
+                  font=FONT_BUTTON, bd=0, command=run_bsa
+                  ).pack(fill="x", padx=10, pady=(0, 4))
+        tk.Label(bsa,
+                 text="Source: Mosteller, NEJM 1987. FDA-cited for "
+                      "chemo and pediatric weight-based dosing.",
                  bg=PANEL, fg=DIM, font=FONT_BODY,
                  wraplength=320, justify="left").pack(
                      anchor="w", padx=10, pady=(0, 10))
