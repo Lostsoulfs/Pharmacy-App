@@ -717,6 +717,8 @@ class PharmacyApp:
         # T7.7 — audit log filter persists across re-renders of
         # panel_admin. Empty string = no filter.
         self._audit_filter = ""
+        # T7.12 — inventory drug-name filter, same persistence pattern.
+        self._inv_filter = ""
 
         root.title("Pharmacy OS")
         try:
@@ -1469,21 +1471,54 @@ class PharmacyApp:
                 ).pack(anchor="w", padx=14, pady=2)
             tk.Frame(cr, bg=PANEL, height=6).pack()
 
-        # ---- Inventory / Expiration ----
+        # ---- Inventory / Expiration (T5.3 + T7.12 filter) ----
         inv = tk.Frame(host, bg=PANEL)
         inv.pack(fill="x", padx=14, pady=8)
-        tk.Label(inv, text="Inventory / Expiration", bg=PANEL, fg=ACCENT,
+        inv_header = ("Inventory / Expiration (filter: '%s')"
+                      % self._inv_filter
+                      if self._inv_filter
+                      else "Inventory / Expiration")
+        tk.Label(inv, text=inv_header, bg=PANEL, fg=ACCENT,
                  font=FONT_BUTTON).pack(anchor="w", padx=10, pady=(8, 4))
+
+        # T7.12 — drug-name filter. Parameterized LIKE; case-insensitive
+        # via SQLite default for ASCII.
+        ifilt = tk.Frame(inv, bg=PANEL)
+        ifilt.pack(fill="x", padx=10, pady=(2, 6))
+        ifilt_e = tk.Entry(ifilt, font=FONT_BODY, bg=BG, fg=TEXT,
+                           insertbackground=TEXT)
+        ifilt_e.insert(0, self._inv_filter)
+        ifilt_e.pack(side="left", fill="x", expand=True, ipady=4)
+        tk.Button(ifilt, text="Find", bg=ACCENT, fg=BG,
+                  font=FONT_BUTTON, bd=0,
+                  command=lambda: self._admin_inv_filter(ifilt_e.get())
+                  ).pack(side="left", padx=(6, 0))
+        if self._inv_filter:
+            tk.Button(ifilt, text="Clear", bg=DIM, fg=BG,
+                      font=FONT_BUTTON, bd=0,
+                      command=lambda: self._admin_inv_filter("")
+                      ).pack(side="left", padx=(6, 0))
+
         conn = get_db_connection()
         try:
-            inv_rows = conn.execute(
-                "SELECT drug_name, exp_date FROM Inventory "
-                "ORDER BY exp_date, drug_name"
-            ).fetchall()
+            if self._inv_filter:
+                inv_rows = conn.execute(
+                    "SELECT drug_name, exp_date FROM Inventory "
+                    "WHERE drug_name LIKE ? "
+                    "ORDER BY exp_date, drug_name",
+                    ("%" + self._inv_filter + "%",)
+                ).fetchall()
+            else:
+                inv_rows = conn.execute(
+                    "SELECT drug_name, exp_date FROM Inventory "
+                    "ORDER BY exp_date, drug_name"
+                ).fetchall()
         finally:
             conn.close()
         if not inv_rows:
-            tk.Label(inv, text="(no inventory)", bg=PANEL, fg=DIM,
+            empty_msg = ("(no matches)" if self._inv_filter
+                         else "(no inventory)")
+            tk.Label(inv, text=empty_msg, bg=PANEL, fg=DIM,
                      font=FONT_BODY).pack(anchor="w", padx=14, pady=2)
         for r in inv_rows:
             row = tk.Frame(inv, bg=PANEL)
@@ -1658,6 +1693,12 @@ class PharmacyApp:
         # stored, so user-typed % is treated as literal-ish through the
         # parameterized binding. No filter audit-log entry (would spam).
         self._audit_filter = (text or "").strip()
+        self.navigate_to("admin")
+
+    def _admin_inv_filter(self, text):
+        # T7.12 — inventory drug-name filter. Same pattern as audit
+        # filter: state attribute + redraw.
+        self._inv_filter = (text or "").strip()
         self.navigate_to("admin")
 
     def _admin_export_audit(self):
