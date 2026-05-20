@@ -18,7 +18,7 @@ from .config import LOCKOUT_THRESHOLD, LOCKOUT_SECONDS
 from .theme import (BG, PANEL, TEXT, ACCENT, DIM, GREEN, RED,
                     FONT_HEADING, FONT_BODY, FONT_BUTTON)
 from .clinical_data import (RED_FLAGS, LASA_PAIRS, SIG_ABBREVIATIONS,
-                            COMMON_RX_FLAGS, BRAND_GENERIC)
+                            COMMON_RX_FLAGS, BRAND_GENERIC, VACCINES)
 from .logic import (calc_insulin_logic, calc_days_supply_logic,
                     verify_dea_logic, dea_registrant_type,
                     calc_crcl_cockcroft_gault, calc_bsa_mosteller,
@@ -1534,22 +1534,44 @@ class PharmacyApp:
         self.navigate_to("partials")
 
     def panel_vaccines(self):
+        # T5 scope item resolved 2026-05-20: the empty-placeholder panel
+        # is replaced with structured eligibility data from
+        # clinical_data.VACCINES. That data is GENERATED, NOT externally
+        # verified — UNVERIFIED banner per ADR-C05, plus a CDC/ACIP
+        # source-of-truth citation.
         host = self.make_scrollable(self.content_host)
         tk.Label(host, text="Vaccine Eligibility", bg=BG, fg=TEXT,
                  font=FONT_HEADING).pack(pady=12)
-        f = tk.Frame(host, bg=PANEL)
-        f.pack(fill="x", padx=14, pady=8)
-        tk.Label(f, text="⚠ No vaccine eligibility data in v13 source.",
-                 bg=PANEL, fg=RED, font=FONT_BUTTON,
-                 wraplength=340, justify="left").pack(padx=10, pady=(10, 4))
-        tk.Label(f,
-                 text="This panel requires a data decision before it can be built.\n"
-                      "Options: (a) source CDC/ACIP schedule data and build a "
-                      "structured table, or (b) embed a static reference sheet. "
-                      "Neither option existed in v13. Raise this as a T5 scope "
-                      "item or leave as a labeled placeholder.",
-                 bg=PANEL, fg=DIM, font=FONT_BODY,
-                 wraplength=340, justify="left").pack(padx=10, pady=(0, 12))
+        tk.Label(host,
+                 text=("⚠ UNVERIFIED DATA — generated quick-reference, "
+                       "NOT cross-checked against the current schedule. "
+                       "Verify every age, dose count and interval before "
+                       "clinical use. Pharmacist administration scope "
+                       "varies by state and patient age."),
+                 bg=BG, fg=RED, font=FONT_BODY, wraplength=360,
+                 justify="left").pack(padx=14, pady=(0, 4))
+        tk.Label(host,
+                 text=("Source of truth: CDC/ACIP Immunization "
+                       "Schedules\ncdc.gov/vaccines/schedules"),
+                 bg=BG, fg=DIM, font=FONT_BODY, wraplength=360,
+                 justify="left").pack(padx=14, pady=(0, 8))
+
+        for v in VACCINES:
+            card = tk.Frame(host, bg=PANEL)
+            card.pack(fill="x", padx=14, pady=6)
+            tk.Label(card, text=v["vaccine"], bg=PANEL, fg=ACCENT,
+                     font=FONT_BUTTON, anchor="w", wraplength=320,
+                     justify="left").pack(anchor="w", padx=10,
+                                          pady=(8, 2))
+            for label, key in (("Eligible ages", "ages"),
+                                ("Schedule", "schedule"),
+                                ("Notes", "notes")):
+                tk.Label(card, text="%s: %s" % (label, v[key]),
+                         bg=PANEL, fg=TEXT, font=FONT_BODY,
+                         wraplength=320, justify="left",
+                         anchor="w").pack(anchor="w", padx=14,
+                                          pady=(0, 2))
+            tk.Frame(card, bg=PANEL, height=4).pack()
 
     def panel_sig(self):
         host = self.make_scrollable(self.content_host)
