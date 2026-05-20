@@ -252,7 +252,7 @@ def db_record_score(tech, correct, total):
         conn.execute(
             "INSERT INTO Scores (tech_name, date, correct, total) "
             "VALUES (?, ?, ?, ?)",
-            (tech, datetime.now().isoformat(timespec="seconds"),
+            (tech, datetime.now().strftime("%Y-%m-%d"),
              int(correct), int(total)),
         )
         conn.commit()

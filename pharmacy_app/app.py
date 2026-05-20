@@ -26,7 +26,8 @@ from .logic import (calc_insulin_logic, calc_days_supply_logic,
                     calculate_weight, sm2_update)
 from .data import (get_db_connection, init_db, db_log_audit, db_add_user,
                     db_remove_user, db_verify_pin, db_list_users,
-                    db_get_state, db_set_state, db_perf, db_list_backups,
+                    db_get_state, db_set_state, db_perf, db_record_score,
+                    db_list_backups,
                     db_restore, db_open_partials_count,
                     db_expired_inventory, db_backup, db_export_inventory,
                     db_export_audit_log, db_mastered_brands,
@@ -610,20 +611,10 @@ class PharmacyApp:
 
         # End quiz or continue
         if self.quiz_total >= 10:
-            conn = None
             try:
-                conn = get_db_connection()
-                date_str = datetime.now().strftime("%Y-%m-%d")
-                conn.execute(
-                    "INSERT INTO Scores (tech_name, date, correct, total) VALUES (?, ?, ?, ?)",
-                    (self.user, date_str, self.quiz_score, 10)
-                )
-                conn.commit()
+                db_record_score(self.user, self.quiz_score, 10)
             except Exception:
                 pass  # Silent fail; score save non-critical
-            finally:
-                if conn:
-                    conn.close()
             self.navigate_to("home")
         else:
             self.show_question()
