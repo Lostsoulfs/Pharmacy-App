@@ -1,0 +1,308 @@
+#!/usr/bin/env python3
+"""Data-layer tests for pharmacy_app.data (pytest).
+
+Covers the DB functions that previously had ZERO automated coverage.
+Every test runs against a throwaway SQLite file in a pytest tmp_path,
+so nothing touches the real pharmacy_master.db. HOME is also redirected
+into tmp_path so backup/export functions write somewhere disposable.
+
+Run:  pytest tests/test_data.py -q
+"""
+
+import os
+import sys
+
+import pytest
+
+sys.path.insert(
+    0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from pharmacy_app import data as D  # noqa: E402
+from pharmacy_app.logic import calculate_weight  # noqa: E402
+
+
+@pytest.fixture
+def db(tmp_path, monkeypatch):
+    """Fresh, isolated DB per test. Patches data.DB_FILE to a temp
+    file and HOME to tmp_path; runs init_db(); yields the data module."""
+    monkeypatch.setattr(D, "DB_FILE", str(tmp_path / "test.db"))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    D.init_db()
+    return D
+
+
+def _raw_insert(sql, params):
+    """Insert a row directly — for tables (Inventory, PartialFills,
+    PTCBMastery, MasteryStats) that have no dedicated data.py helper."""
+    conn = D.get_db_connection()
+    try:
+        conn.execute(sql, params)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+# --- init_db --------------------------------------------------------
+def test_init_db_seeds_one_admin(db):
+    admins, techs = db.db_list_users()
+    assert admins == ["Nathan"]
+    assert techs == []
+
+
+def test_init_db_is_idempotent(db):
+    db.init_db()
+    db.init_db()
+    admins, _ = db.db_list_users()
+    assert admins == ["Nathan"]          # still exactly one admin
+
+
+def test_init_db_seeds_default_shift_notes(db):
+    assert db.db_get_state("shift_notes") == "Welcome to your shift."
+
+
+# --- db_add_user ----------------------------------------------------
+def test_add_tech_then_listed(db):
+    assert db.db_add_user("Alice", "tech", "4729") is True
+    admins, techs = db.db_list_users()
+    assert "Alice" in techs
+
+
+def test_add_user_rejects_blank_name(db):
+    assert db.db_add_user("   ", "tech") is False
+
+
+def test_add_user_rejects_reserved_name(db):
+    assert db.db_add_user("admin", "tech") is False
+    assert db.db_add_user("System", "tech") is False   # case-insensitive
+
+
+def test_add_user_rejects_role_collision(db):
+    # A1 fix: cannot overwrite admin "Nathan" by re-adding as a tech.
+    assert db.db_add_user("Nathan", "tech", "1111") is False
+    admins, _ = db.db_list_users()
+    assert "Nathan" in admins                          # still admin
+
+
+# --- db_verify_pin --------------------------------------------------
+def test_verify_pin_correct_and_wrong(db):
+    db.db_add_user("Bob", "tech", "8675")
+    assert db.db_verify_pin("Bob", "8675") is True
+    assert db.db_verify_pin("Bob", "0000") is False
+
+
+def test_verify_pin_none_and_unknown_user(db):
+    assert db.db_verify_pin("Nathan", None) is False
+    assert db.db_verify_pin("Ghost", "1234") is False
+
+
+# --- db_remove_user -------------------------------------------------
+def test_remove_tech_succeeds(db):
+    db.db_add_user("Carol", "tech", "5391")
+    assert db.db_remove_user("Carol") is True
+    _, techs = db.db_list_users()
+    assert "Carol" not in techs
+
+
+def test_remove_last_admin_refused(db):
+    # A3 fix: removing the only admin must be refused.
+    assert db.db_remove_user("Nathan") is False
+    admins, _ = db.db_list_users()
+    assert "Nathan" in admins
+
+
+def test_remove_admin_allowed_when_another_exists(db):
+    db.db_add_user("SecondAdmin", "admin", "7410")
+    assert db.db_remove_user("Nathan") is True
+
+
+# --- db_get_state / db_set_state ------------------------------------
+def test_state_roundtrip_and_default(db):
+    assert db.db_get_state("missing", "fallback") == "fallback"
+    db.db_set_state("missing", "now-set")
+    assert db.db_get_state("missing") == "now-set"
+
+
+def test_state_overwrite(db):
+    db.db_set_state("k", "v1")
+    db.db_set_state("k", "v2")
+    assert db.db_get_state("k") == "v2"
+
+
+# --- db_log_audit (incl. pruning) -----------------------------------
+def test_audit_log_appends(db):
+    db.db_log_audit("Nathan", "Logged In")
+    conn = db.get_db_connection()
+    try:
+        n = conn.execute("SELECT COUNT(*) AS c FROM AuditLog").fetchone()["c"]
+    finally:
+        conn.close()
+    assert n == 1
+
+
+def test_audit_log_prunes_to_max(db, monkeypatch):
+    monkeypatch.setattr(D, "MAX_LOG_ENTRIES", 3)
+    for i in range(6):
+        db.db_log_audit("Nathan", "action %d" % i)
+    conn = db.get_db_connection()
+    try:
+        rows = conn.execute(
+            "SELECT action FROM AuditLog ORDER BY id").fetchall()
+    finally:
+        conn.close()
+    assert len(rows) == 3                              # pruned to cap
+    assert rows[-1]["action"] == "action 5"            # newest kept
+
+
+# --- db_record_score / db_perf / db_recent_scores -------------------
+def test_perf_averages_scores(db):
+    db.db_record_score("Alice", 8, 10)
+    db.db_record_score("Alice", 6, 10)
+    quizzes, pct = db.db_perf("Alice")
+    assert quizzes == 2
+    assert pct == 70                                   # (8+6)/(10+10)
+
+
+def test_perf_empty_is_zero(db):
+    assert db.db_perf("Nobody") == (0, 0)
+
+
+def test_recent_scores_newest_first(db):
+    db.db_record_score("Alice", 5, 10)
+    db.db_record_score("Alice", 9, 10)
+    recent = db.db_recent_scores("Alice", limit=10)
+    assert recent[0][1] == 9                           # newest score first
+    assert recent[0][3] == 90                          # pct computed
+
+
+# --- db_expired_inventory -------------------------------------------
+def test_expired_inventory_filters_by_date(db):
+    _raw_insert("INSERT INTO Inventory VALUES (?, ?)", ("OldDrug", "2020-01-01"))
+    _raw_insert("INSERT INTO Inventory VALUES (?, ?)", ("FreshDrug", "2099-01-01"))
+    expired = db.db_expired_inventory(today="2026-05-20")
+    assert expired == [("OldDrug", "2020-01-01")]
+
+
+# --- db_open_partials_count -----------------------------------------
+def test_open_partials_count(db):
+    _raw_insert(
+        "INSERT INTO PartialFills (drug, qty_owed, patient, date, resolved) "
+        "VALUES (?, ?, ?, ?, ?)", ("DrugX", 5, "Pat", "2026-05-20", 0))
+    _raw_insert(
+        "INSERT INTO PartialFills (drug, qty_owed, patient, date, resolved) "
+        "VALUES (?, ?, ?, ?, ?)", ("DrugY", 2, "Pat", "2026-05-20", 1))
+    assert db.db_open_partials_count() == 1             # only unresolved
+
+
+# --- db_mastered_brands ---------------------------------------------
+def test_mastered_brands(db):
+    _raw_insert("INSERT INTO PTCBMastery VALUES (?, ?)", ("Alice", "Lipitor"))
+    result = db.db_mastered_brands("Alice", ["Lipitor", "Zoloft"])
+    assert result == {"Lipitor"}
+
+
+def test_mastered_brands_empty_input(db):
+    assert db.db_mastered_brands("Alice", []) == set()
+
+
+# --- db_weak_spots --------------------------------------------------
+def test_weak_spots_ranks_misses(db):
+    _raw_insert("INSERT INTO MasteryStats VALUES (?, ?, ?, ?)",
+                ("Alice", "DrugA", 2, 10))             # missed 8
+    _raw_insert("INSERT INTO MasteryStats VALUES (?, ?, ?, ?)",
+                ("Alice", "DrugB", 9, 10))             # missed 1
+    weak = db.db_weak_spots("Alice")
+    assert weak[0][0] == "DrugA"                       # most-missed first
+    assert weak[0][1] == 8
+
+
+# --- ptcb_readiness -------------------------------------------------
+def test_ptcb_readiness(db):
+    _raw_insert("INSERT INTO PTCBMastery VALUES (?, ?)", ("Alice", "Lipitor"))
+    mastered, total, pct = db.ptcb_readiness("Alice")
+    assert mastered == 1
+    assert total > 0
+    assert 0 <= pct <= 100
+
+
+# --- pure helpers ---------------------------------------------------
+def test_like_escape():
+    assert D._like_escape("a%b_c") == "a\\%b\\_c"
+    assert D._like_escape("back\\slash") == "back\\\\slash"
+    assert D._like_escape("") == ""
+
+
+def test_date_is_valid():
+    assert D._date_is_valid("2026-05-20") is True
+    assert D._date_is_valid("2026-13-99") is False
+    assert D._date_is_valid("not-a-date") is False
+
+
+# --- backup / restore / list_backups --------------------------------
+def test_backup_creates_file(db):
+    path = db.db_backup()
+    assert os.path.exists(path)
+
+
+def test_list_backups_finds_backup(db):
+    db.db_backup()
+    backups = db.db_list_backups()
+    assert len(backups) >= 1
+    assert backups[0][0].startswith("pharmacy_backup_")
+
+
+def test_restore_roundtrip(db):
+    # snapshot -> add a user -> restore -> the added user is gone
+    backup_path = db.db_backup()
+    db.db_add_user("Temp", "tech", "9999")
+    assert "Temp" in db.db_list_users()[1]
+    db.db_restore(backup_path)
+    assert "Temp" not in db.db_list_users()[1]
+
+
+# --- exports --------------------------------------------------------
+def test_export_inventory_writes_file(db):
+    _raw_insert("INSERT INTO Inventory VALUES (?, ?)", ("DrugZ", "2030-01-01"))
+    path = db.db_export_inventory()
+    assert os.path.exists(path)
+    with open(path, encoding="utf-8") as fh:
+        body = fh.read()
+    assert "DrugZ" in body
+
+
+def test_export_audit_log_writes_file(db):
+    db.db_log_audit("Nathan", "Exported")
+    path = db.db_export_audit_log()
+    assert os.path.exists(path)
+    with open(path, encoding="utf-8") as fh:
+        body = fh.read()
+    assert "Exported" in body
+
+
+# --- calculate_weight (logic.py, but DB-dependent) ------------------
+def test_calculate_weight_no_stats_returns_base(db):
+    conn = db.get_db_connection()
+    try:
+        assert calculate_weight("Alice", "Lipitor", conn) == 10
+    finally:
+        conn.close()
+
+
+def test_calculate_weight_scales_with_misses(db):
+    # missed = total - correct = 10 - 4 = 6 -> weight = 10 + 6*5 = 40
+    _raw_insert("INSERT INTO MasteryStats VALUES (?, ?, ?, ?)",
+                ("Alice", "Lipitor", 4, 10))
+    conn = db.get_db_connection()
+    try:
+        assert calculate_weight("Alice", "Lipitor", conn) == 40
+    finally:
+        conn.close()
+
+
+def test_calculate_weight_all_correct_returns_one(db):
+    _raw_insert("INSERT INTO MasteryStats VALUES (?, ?, ?, ?)",
+                ("Alice", "Zoloft", 10, 10))
+    conn = db.get_db_connection()
+    try:
+        assert calculate_weight("Alice", "Zoloft", conn) == 1
+    finally:
+        conn.close()
