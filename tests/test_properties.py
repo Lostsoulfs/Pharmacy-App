@@ -222,3 +222,44 @@ def test_answer_matches_alias_branch():
     assert answer_matches("acetaminophen", "Tylenol/Acetaminophen") is True
     assert answer_matches("tylenol", "Tylenol/Acetaminophen") is True
     assert answer_matches("aspirin", "Tylenol/Acetaminophen") is False
+
+
+def test_crcl_nonunity_creatinine():
+    # every other CrCl test uses serum creatinine = 1.0, which makes a
+    # 72*scr vs 72/scr formula error invisible (both give 72 at scr=1).
+    # scr=2.0 distinguishes them: (140-60)*72 / (72*2) = 40.0.
+    assert math.isclose(calc_crcl_cockcroft_gault(60, 72, 2.0), 40.0)
+    assert math.isclose(
+        calc_crcl_cockcroft_gault(60, 72, 2.0, is_female=True), 34.0)
+
+
+def test_calculator_zero_lower_bounds_rejected():
+    # exact-zero on the lower-bound guards (kills <=0 -> <0 mutants)
+    for args in [
+        (calc_crcl_cockcroft_gault, 40, 0, 1.0),     # weight 0
+        (calc_crcl_cockcroft_gault, 0, 80, 1.0),     # age 0
+        (calc_peds_dose, 18, 0, 2, 50),              # mg/kg/day 0
+        (calc_peds_dose, 18, 90, 2, 0),              # concentration 0
+        (calc_bsa_mosteller, 170, 0),                # weight 0
+    ]:
+        _, ok = _value_error_only(*args)
+        assert not ok
+
+
+def test_insulin_daily_one_is_valid():
+    # daily=1 is valid (>0); kills the daily<=0 -> daily<=1 mutant
+    assert calc_insulin_logic(1, 10, 100) == 1000
+
+
+def test_dea_registrant_all_prefixes():
+    # only A and F were tested before — B/G/M/P/R/X/unknown all open
+    assert dea_registrant_type("B1234563")[1] is True
+    assert dea_registrant_type("G1234563")[1] is True
+    assert dea_registrant_type("M1234563") == (
+        "Mid-Level Practitioner (NP/PA)", True)
+    assert dea_registrant_type("P1234563") == (
+        "Distributor / Researcher", False)
+    assert dea_registrant_type("R1234563") == ("Researcher", False)
+    assert dea_registrant_type("X1234563") == (
+        "DATA-2000 / Suboxone Practitioner", True)
+    assert dea_registrant_type("Z1234563") == ("Unknown prefix", False)
