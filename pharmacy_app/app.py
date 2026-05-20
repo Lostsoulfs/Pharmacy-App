@@ -39,11 +39,10 @@ class PharmacyApp:
         self.root = root
         self.user = None
         self.is_admin = False
-        # In-memory lockout (resets on app restart). Decision: bare-bones,
-        # matches v13 behavior class; persistent lockout deferred (not in
-        # scope). Constants from config: LOCKOUT_THRESHOLD / LOCKOUT_SECONDS.
+        # Lockout window persists in AppState (survives app restart);
+        # fail counter is in-memory (fresh count per launch is fine —
+        # the lockout timestamp is the security-relevant part).
         self._admin_fails = 0
-        self._admin_lock_until = 0.0
         # T7.7 — audit log filter persists across re-renders of
         # panel_admin. Empty string = no filter.
         self._audit_filter = ""
@@ -118,8 +117,9 @@ class PharmacyApp:
 
     def _admin_login(self, name):
         now = time.time()
-        if now < self._admin_lock_until:
-            secs = int(self._admin_lock_until - now)
+        lock_until = float(db_get_state("admin_lock_until", "0") or "0")
+        if now < lock_until:
+            secs = int(lock_until - now)
             messagebox.showerror(
                 "Locked", "Admin access locked for %d seconds." % secs)
             return
@@ -129,6 +129,7 @@ class PharmacyApp:
             return
         if db_verify_pin(name, pin):
             self._admin_fails = 0
+            db_set_state("admin_lock_until", "0")
             if pin == "1234":
                 self._force_pin_change(name)
             self._enter(name, admin=True)
@@ -136,7 +137,7 @@ class PharmacyApp:
             self._admin_fails += 1
             remaining = LOCKOUT_THRESHOLD - self._admin_fails
             if remaining <= 0:
-                self._admin_lock_until = now + LOCKOUT_SECONDS
+                db_set_state("admin_lock_until", str(now + LOCKOUT_SECONDS))
                 self._admin_fails = 0
                 messagebox.showerror(
                     "Locked",
@@ -158,11 +159,22 @@ class PharmacyApp:
             # old_pin='1234': forced change only triggers on default
             # login, so this also blocks reverting to the default.
             ok, reason = is_strong_pin(new, old_pin="1234")
-            if ok:
-                db_add_user(name, "admin", new)
-                messagebox.showinfo("Security", "Admin PIN updated.")
-                return
-            messagebox.showerror("Invalid", reason)
+            if not ok:
+                messagebox.showerror("Invalid", reason)
+                continue
+            # Confirmation re-entry: masked field gives no echo, so a
+            # silent typo here would lock the admin out of a PIN they
+            # cannot reproduce. Require an exact second entry.
+            confirm = simpledialog.askstring(
+                "Set PIN", "Re-enter new PIN to confirm:",
+                show="*", parent=self.root)
+            if confirm != new:
+                messagebox.showerror(
+                    "Mismatch", "PINs did not match. Set it again.")
+                continue
+            db_add_user(name, "admin", new)
+            messagebox.showinfo("Security", "Admin PIN updated.")
+            return
 
     def _tech_login(self, name):
         self._enter(name, admin=False)
