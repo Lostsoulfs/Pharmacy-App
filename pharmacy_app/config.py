@@ -33,8 +33,8 @@ DATA_VERIFIED = {
     "sig_abbreviations": True,    # verified 2026-05-20 (audit)
     "common_rx_flags":   True,    # verified 2026-05-20 (audit)
     "vaccines":          True,    # verified 2026-05-20 (audit)
-    "law":               False,   # panel_law hardcoded bullets
-    "tpr":               False,   # panel_tpr hardcoded guide
+    "law":               True,    # verified 2026-05-20 (audit)
+    "tpr":               True,    # verified 2026-05-20 (audit)
 }
 
 

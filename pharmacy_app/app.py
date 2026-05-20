@@ -19,7 +19,8 @@ from .config import (LOCKOUT_THRESHOLD, LOCKOUT_SECONDS,
 from .theme import (BG, PANEL, TEXT, ACCENT, DIM, GREEN, RED,
                     FONT_HEADING, FONT_BODY, FONT_BUTTON)
 from .clinical_data import (RED_FLAGS, LASA_PAIRS, SIG_ABBREVIATIONS,
-                            COMMON_RX_FLAGS, BRAND_GENERIC, VACCINES)
+                            COMMON_RX_FLAGS, BRAND_GENERIC, VACCINES,
+                            LAW_BULLETS, TPR_CODES)
 from .logic import (calc_insulin_logic, calc_days_supply_logic,
                     verify_dea_logic, dea_registrant_type,
                     calc_crcl_cockcroft_gault, calc_bsa_mosteller,
@@ -844,47 +845,38 @@ class PharmacyApp:
                      anchor="w", padx=10, pady=(0, 10))
 
     def panel_law(self):
-        # T5.2 + T7.19 — panel_law. Verbatim v13 bullets, UNVERIFIED
-        # banner per ADR-C05, plus citation to MS Board of Pharmacy
-        # authoritative source (Nathan, pharmacist, 2026-05-19).
+        # T5.2 + T7.19 — panel_law. Renders clinical_data.LAW_BULLETS
+        # (verified 2026-05-20 against MS Board of Pharmacy
+        # regulations) grouped by category.
         host = self.make_scrollable(self.content_host)
         tk.Label(host, text="Mississippi Pharmacy Law & Safety",
                  bg=BG, fg=TEXT, font=FONT_HEADING).pack(pady=12)
-        self._unverified_banner(
-            host, ["law"],
-            text=("⚠ UNVERIFIED — bullets carried from v13 source. "
-                  "Not yet cross-checked against the official text "
-                  "below."),
-            pady=(0, 4))
+        self._unverified_banner(host, ["law"])
         tk.Label(host,
                  text=("Source of truth: Mississippi Board of "
-                       "Pharmacy Regulations 4-24-26\n"
-                       "mbp.ms.gov/sites/default/files/2026-04/"
-                       "Regulations%204-24-26.pdf"),
+                       "Pharmacy regulations — Miss. Admin. Code "
+                       "Title 30, Part 3001 (mbp.ms.gov). Re-verify "
+                       "against the current regulations; state law "
+                       "changes."),
                  bg=BG, fg=DIM, font=FONT_BODY, wraplength=360,
                  justify="left").pack(padx=14, pady=(0, 8))
 
-        bullets = [
-            "C-II Prescriptions: Valid for 6 MONTHS. No refills permitted.",
-            "C-III thru C-V: Valid for 6 MONTHS. Max 5 refills.",
-            "Non-Controlled: Valid for 12 MONTHS.",
-            "Emergency C-II: Pharmacist may fill oral authorization; hard copy must follow within 7 days.",
-            "Transfers: C-II cannot be transferred. C-III thru C-V may be transferred ONCE (unless real-time DB).",
-            "Record Keeping: All prescription records must be maintained for at least 6 YEARS per MS Law.",
-            "Pseudoephedrine: Restricted behind counter. Logbook and ID required. State limits apply.",
-        ]
-
-        card = tk.Frame(host, bg=PANEL)
-        card.pack(fill="x", padx=14, pady=8)
-        for line in bullets:
-            row = tk.Frame(card, bg=PANEL)
-            row.pack(fill="x", padx=10, pady=4)
+        last_cat = None
+        for entry in LAW_BULLETS:
+            if entry["category"] != last_cat:
+                last_cat = entry["category"]
+                tk.Label(host, text=last_cat, bg=BG, fg=ACCENT,
+                         font=FONT_BUTTON, anchor="w").pack(
+                             fill="x", padx=14, pady=(10, 2))
+            row = tk.Frame(host, bg=PANEL)
+            row.pack(fill="x", padx=14, pady=2)
             tk.Label(row, text="•", bg=PANEL, fg=ACCENT,
                      font=FONT_BUTTON).pack(side="left", anchor="n",
-                                            padx=(0, 6))
-            tk.Label(row, text=line, bg=PANEL, fg=TEXT, font=FONT_BODY,
-                     wraplength=320, justify="left",
-                     anchor="w").pack(side="left", fill="x", expand=True)
+                                            padx=(8, 6), pady=4)
+            tk.Label(row, text=entry["rule"], bg=PANEL, fg=TEXT,
+                     font=FONT_BODY, wraplength=300, justify="left",
+                     anchor="w").pack(side="left", fill="x",
+                                      expand=True, pady=4)
 
     def panel_admin(self):
         # T5.3 — admin control. DB-backed. Admin-only guard.
@@ -1371,30 +1363,27 @@ class PharmacyApp:
         tk.Label(host, text="TPR (Third Party Rejection) Guide",
                  bg=BG, fg=TEXT, font=FONT_HEADING).pack(pady=12)
         self._unverified_banner(host, ["tpr"])
+        tk.Label(host,
+                 text=("Common NCPDP claim reject codes. The "
+                       "technician resolves these unless the action "
+                       "names the pharmacist."),
+                 bg=BG, fg=DIM, font=FONT_BODY, wraplength=360,
+                 justify="left").pack(padx=14, pady=(0, 8))
 
-        tpr_data = [
-            ("RTS (Refill Too Soon)",
-             "Patient has remaining supply. Check last fill date + 75% usage."),
-            ("PA (Prior Auth)",
-             "Insurance requires doctor's justification. Fax MD and notify patient."),
-            ("Plan Exclusion",
-             "Drug not covered by plan. Suggest generic or discount card."),
-            ("NDC Not Covered",
-             "Specific brand/size not on formulary. Switch to covered NDC."),
-            ("M/I ID or Group",
-             "Insurance info is outdated. Ask patient for new card or use Findins."),
-        ]
-        card = tk.Frame(host, bg=PANEL)
-        card.pack(fill="x", padx=14, pady=8)
-        for code, detail in tpr_data:
-            row = tk.Frame(card, bg=PANEL)
-            row.pack(fill="x", padx=10, pady=6)
-            tk.Label(row, text=code, bg=PANEL, fg=ACCENT,
-                     font=FONT_BUTTON, anchor="w").pack(
-                         anchor="w", padx=2)
-            tk.Label(row, text=detail, bg=PANEL, fg=TEXT,
+        for entry in TPR_CODES:
+            row = tk.Frame(host, bg=PANEL)
+            row.pack(fill="x", padx=14, pady=4)
+            tk.Label(row, text=entry["code"], bg=PANEL, fg=ACCENT,
+                     font=FONT_BUTTON, anchor="w", wraplength=320,
+                     justify="left").pack(anchor="w", padx=10,
+                                          pady=(6, 0))
+            tk.Label(row, text=entry["meaning"], bg=PANEL, fg=DIM,
                      font=FONT_BODY, wraplength=320, justify="left",
                      anchor="w").pack(anchor="w", padx=10, pady=(2, 0))
+            tk.Label(row, text="→ " + entry["action"], bg=PANEL,
+                     fg=TEXT, font=FONT_BODY, wraplength=320,
+                     justify="left", anchor="w").pack(
+                         anchor="w", padx=10, pady=(2, 6))
 
     def panel_hotkeys(self):
         # T5.5 — IC+ Hotkeys. Static panel; verbatim 8 key/description

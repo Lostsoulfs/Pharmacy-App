@@ -17,7 +17,7 @@ sys.path.insert(
 
 from pharmacy_app.clinical_data import (  # noqa: E402
     RED_FLAGS, LASA_PAIRS, SIG_ABBREVIATIONS, COMMON_RX_FLAGS,
-    BRAND_GENERIC, VACCINES,
+    BRAND_GENERIC, VACCINES, LAW_BULLETS, TPR_CODES,
 )
 
 
@@ -63,6 +63,16 @@ def test_sig_abbreviations_shape():
     assert isinstance(SIG_ABBREVIATIONS, dict) and SIG_ABBREVIATIONS
     for abbr, meaning in SIG_ABBREVIATIONS.items():
         assert _nonempty_str(abbr) and _nonempty_str(meaning)
+
+
+def test_law_bullets_shape():
+    _check_dicts(LAW_BULLETS, ("category", "rule"))
+    assert len(LAW_BULLETS) >= 15
+
+
+def test_tpr_codes_shape():
+    _check_dicts(TPR_CODES, ("code", "meaning", "action"))
+    assert len(TPR_CODES) >= 10
 
 
 def test_common_rx_flags_shape():
