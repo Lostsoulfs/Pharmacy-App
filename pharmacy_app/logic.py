@@ -6,6 +6,7 @@ import-clean.
 """
 
 import hashlib
+import math
 
 
 def hash_pin(pin_string):
@@ -39,6 +40,10 @@ def calc_insulin_logic(daily_units, total_ml, concentration,
         conc = float(concentration)
         priming = float(priming_units_per_day)
     except (ValueError, TypeError):
+        raise ValueError("Invalid numeric inputs.")
+    # FUZZ-02: float('nan')/float('inf') parse OK but defeat every
+    # <=/> bounds check below, so reject non-finite values up front.
+    if not all(math.isfinite(v) for v in (daily, total, conc, priming)):
         raise ValueError("Invalid numeric inputs.")
     if daily <= 0:
         raise ValueError("Daily units must be greater than zero.")
@@ -105,6 +110,8 @@ def calc_peds_dose(weight_kg, mg_per_kg_per_day, doses_per_day,
         conc = float(concentration_mg_per_ml)
     except (ValueError, TypeError):
         raise ValueError("Invalid numeric inputs.")
+    if not all(math.isfinite(v) for v in (wt, mkd, d, conc)):  # FUZZ-02
+        raise ValueError("Invalid numeric inputs.")
     if wt <= 0 or wt > 200:
         raise ValueError("Weight must be 0 < weight <= 200 kg.")
     if mkd <= 0 or mkd > 1000:
@@ -129,11 +136,12 @@ def calc_bsa_mosteller(height_cm, weight_kg):
 
     Returns float rounded to 2 decimals. Raises ValueError on bad
     input or implausible bounds."""
-    import math
     try:
         h = float(height_cm)
         w = float(weight_kg)
     except (ValueError, TypeError):
+        raise ValueError("Invalid numeric inputs.")
+    if not all(math.isfinite(v) for v in (h, w)):  # FUZZ-02
         raise ValueError("Invalid numeric inputs.")
     if h <= 0 or h > 300:
         raise ValueError("Height must be 0 < height <= 300 cm.")
@@ -161,6 +169,8 @@ def calc_crcl_cockcroft_gault(age, weight_kg, serum_cr_mg_dl, is_female=False):
         wt = float(weight_kg)
         scr = float(serum_cr_mg_dl)
     except (ValueError, TypeError):
+        raise ValueError("Invalid numeric inputs.")
+    if not all(math.isfinite(v) for v in (age_y, wt, scr)):  # FUZZ-02
         raise ValueError("Invalid numeric inputs.")
     if age_y <= 0 or age_y > 130:
         raise ValueError("Age must be 0 < age <= 130 years.")
@@ -216,6 +226,8 @@ def calc_days_supply_logic(quantity, units_per_day):
         qty = float(quantity)
         daily = float(units_per_day)
     except (ValueError, TypeError):
+        raise ValueError("Invalid quantity or daily-use value.")
+    if not all(math.isfinite(v) for v in (qty, daily)):  # FUZZ-02
         raise ValueError("Invalid quantity or daily-use value.")
     if qty <= 0 or daily <= 0:
         raise ValueError("Invalid quantity or daily-use value.")
