@@ -306,3 +306,14 @@ def test_calculate_weight_all_correct_returns_one(db):
         assert calculate_weight("Alice", "Zoloft", conn) == 1
     finally:
         conn.close()
+
+
+def test_calculate_weight_single_miss_boundary(db):
+    # missed == 1 boundary: 10 + 1*5 = 15 (kills the missed>0 -> >1 mutant)
+    _raw_insert("INSERT INTO MasteryStats VALUES (?, ?, ?, ?)",
+                ("Alice", "Mobic", 9, 10))
+    conn = db.get_db_connection()
+    try:
+        assert calculate_weight("Alice", "Mobic", conn) == 15
+    finally:
+        conn.close()

@@ -3,3 +3,12 @@ __pycache__/
 *.pyo
 pharmacy_master.db
 *.zip
+
+# test/quality artifacts
+.coverage
+.coverage.*
+.hypothesis/
+.pytest_cache/
+mutants/
+.mutmut-cache
+html/

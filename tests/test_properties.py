@@ -201,3 +201,24 @@ def test_is_strong_pin_shape(new_pin, old_pin):
 def test_is_strong_pin_rejects_short(new_pin):
     ok, _ = is_strong_pin(new_pin)
     assert ok is False                           # < 4 chars always fails
+
+
+# --- mutation-testing-driven cases (mutmut found these gaps) --------
+def test_is_strong_pin_sequential_variants():
+    # kills the range(len-1) -> range(len-2) off-by-one mutant
+    assert is_strong_pin("2345")[0] is False     # ascending run
+    assert is_strong_pin("9876")[0] is False     # descending run
+    assert is_strong_pin("1239")[0] is True      # ascending then breaks
+    assert is_strong_pin("9870")[0] is True      # descending then breaks
+
+
+def test_is_strong_pin_rejects_reuse():
+    assert is_strong_pin("4827", old_pin="4827")[0] is False
+    assert is_strong_pin("4827", old_pin="5193")[0] is True
+
+
+def test_answer_matches_alias_branch():
+    # the slash/comma alias path was never exercised by any test
+    assert answer_matches("acetaminophen", "Tylenol/Acetaminophen") is True
+    assert answer_matches("tylenol", "Tylenol/Acetaminophen") is True
+    assert answer_matches("aspirin", "Tylenol/Acetaminophen") is False
