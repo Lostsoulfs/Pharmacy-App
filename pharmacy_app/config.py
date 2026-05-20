@@ -22,19 +22,21 @@ RESERVED_TECH_NAMES = {'admin', 'global', 'system', 'pharmacist'}
 # (ADR-002): expanduser("~") -> /data/user/0/ru.iiec.pydroid3/app_HOME
 DB_FILE = os.path.join(os.path.expanduser("~"), "pharmacy_master.db")
 
-# Per-dataset verification (replaces the ADR-C05 global flag). The UI
-# layer MUST render the UNVERIFIED warning next to any dataset whose
-# key here is still False. Flip a key to True only once a pharmacist
-# has verified that dataset.
+# Per-dataset verification (replaces the ADR-C05 global flag). Each
+# value is the ISO date the dataset was verified, or False if it is
+# still unverified. The UI shows a red UNVERIFIED banner for any
+# dataset still False, and a dated confirmation for verified ones.
+# Setting a key to a date is a clinical assertion — only do it after
+# a documented audit under docs/audits/.
 DATA_VERIFIED = {
-    "brand_generic":     True,    # verified 2026-05-20 (audit)
-    "red_flags":         True,    # verified 2026-05-20 (audit)
-    "lasa_pairs":        True,    # verified 2026-05-20 (audit)
-    "sig_abbreviations": True,    # verified 2026-05-20 (audit)
-    "common_rx_flags":   True,    # verified 2026-05-20 (audit)
-    "vaccines":          True,    # verified 2026-05-20 (audit)
-    "law":               True,    # verified 2026-05-20 (audit)
-    "tpr":               True,    # verified 2026-05-20 (audit)
+    "brand_generic":     "2026-05-20",
+    "red_flags":         "2026-05-20",
+    "lasa_pairs":        "2026-05-20",
+    "sig_abbreviations": "2026-05-20",
+    "common_rx_flags":   "2026-05-20",
+    "vaccines":          "2026-05-20",
+    "law":               "2026-05-20",
+    "tpr":               "2026-05-20",
 }
 
 
@@ -44,4 +46,12 @@ def is_unverified(domains):
     unverified (banner shows)."""
     if not domains:
         return True
-    return not all(DATA_VERIFIED.get(d, False) for d in domains)
+    return not all(DATA_VERIFIED.get(d) for d in domains)
+
+
+def verified_on(domains):
+    """The most recent verification date among `domains`, or None if
+    any listed domain is still unverified."""
+    if is_unverified(domains):
+        return None
+    return max(DATA_VERIFIED[d] for d in domains)

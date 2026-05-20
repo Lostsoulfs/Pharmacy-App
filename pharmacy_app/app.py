@@ -15,7 +15,7 @@ import tkinter as tk
 from tkinter import simpledialog, messagebox
 
 from .config import (LOCKOUT_THRESHOLD, LOCKOUT_SECONDS,
-                     is_unverified)
+                     is_unverified, verified_on)
 from .theme import (BG, PANEL, TEXT, ACCENT, DIM, GREEN, RED,
                     FONT_HEADING, FONT_BODY, FONT_BUTTON)
 from .clinical_data import (RED_FLAGS, LASA_PAIRS, SIG_ABBREVIATIONS,
@@ -271,17 +271,21 @@ class PharmacyApp:
 
     # ---- panels ----
     def _unverified_banner(self, host, domains, text=None, pady=(0, 8)):
-        """Render the ADR-C05 UNVERIFIED-data warning. `domains` is a
-        list of config.DATA_VERIFIED keys this panel renders; the
-        banner shows until every one of them is verified."""
-        if not is_unverified(domains):
+        """Render the ADR-C05 data-status line. `domains` is a list of
+        config.DATA_VERIFIED keys this panel renders. Shows a red
+        UNVERIFIED warning until every listed domain is verified, then
+        a small dated confirmation."""
+        if is_unverified(domains):
+            if text is None:
+                text = ("⚠ UNVERIFIED DATA — not externally "
+                        "validated.")
+            tk.Label(host, text=text, bg=BG, fg=RED, font=FONT_BODY,
+                     wraplength=360, justify="left").pack(
+                         padx=14, pady=pady)
             return
-        if text is None:
-            text = ("⚠ UNVERIFIED DATA — v13 source, not externally "
-                    "validated.")
-        tk.Label(host, text=text, bg=BG, fg=RED, font=FONT_BODY,
-                 wraplength=360, justify="left").pack(
-                     padx=14, pady=pady)
+        tk.Label(host, text="✓ Verified data (%s)" % verified_on(domains),
+                 bg=BG, fg=GREEN, font=FONT_BODY, wraplength=360,
+                 justify="left").pack(padx=14, pady=pady)
 
     def panel_home(self):
         host = self.make_scrollable(self.content_host)
