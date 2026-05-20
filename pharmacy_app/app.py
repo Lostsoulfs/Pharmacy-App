@@ -14,7 +14,8 @@ from datetime import datetime, timedelta
 import tkinter as tk
 from tkinter import simpledialog, messagebox
 
-from .config import LOCKOUT_THRESHOLD, LOCKOUT_SECONDS
+from .config import (LOCKOUT_THRESHOLD, LOCKOUT_SECONDS,
+                     CLINICAL_DATA_UNVERIFIED)
 from .theme import (BG, PANEL, TEXT, ACCENT, DIM, GREEN, RED,
                     FONT_HEADING, FONT_BODY, FONT_BUTTON)
 from .clinical_data import (RED_FLAGS, LASA_PAIRS, SIG_ABBREVIATIONS,
@@ -268,6 +269,19 @@ class PharmacyApp:
             fn()
 
     # ---- panels ----
+    def _unverified_banner(self, host, text=None, pady=(0, 8)):
+        """Render the ADR-C05 UNVERIFIED-data warning, gated on
+        config.CLINICAL_DATA_UNVERIFIED. No-op once that flag is set
+        False — the warning stands until the data is verified."""
+        if not CLINICAL_DATA_UNVERIFIED:
+            return
+        if text is None:
+            text = ("⚠ UNVERIFIED DATA — v13 source, not externally "
+                    "validated.")
+        tk.Label(host, text=text, bg=BG, fg=RED, font=FONT_BODY,
+                 wraplength=360, justify="left").pack(
+                     padx=14, pady=pady)
+
     def panel_home(self):
         host = self.make_scrollable(self.content_host)
         title = "Home Dashboard" if self.is_admin else "Station Dashboard"
@@ -438,9 +452,7 @@ class PharmacyApp:
         host = self.make_scrollable(self.content_host)
         tk.Label(host, text="Training Center", bg=BG, fg=TEXT,
                  font=FONT_HEADING).pack(pady=12)
-        tk.Label(host, text="⚠ UNVERIFIED DATA — v13 source, not externally validated.",
-                 bg=BG, fg=RED, font=FONT_BODY, wraplength=360,
-                 justify="left").pack(padx=14, pady=(0, 8))
+        self._unverified_banner(host)
 
         modes = [
             ("Top 200: Brand → Generic", "b2g"),
@@ -837,12 +849,12 @@ class PharmacyApp:
         host = self.make_scrollable(self.content_host)
         tk.Label(host, text="Mississippi Pharmacy Law & Safety",
                  bg=BG, fg=TEXT, font=FONT_HEADING).pack(pady=12)
-        tk.Label(host,
-                 text=("⚠ UNVERIFIED — bullets carried from v13 "
-                       "source. Not yet cross-checked against the "
-                       "official text below."),
-                 bg=BG, fg=RED, font=FONT_BODY, wraplength=360,
-                 justify="left").pack(padx=14, pady=(0, 4))
+        self._unverified_banner(
+            host,
+            text=("⚠ UNVERIFIED — bullets carried from v13 source. "
+                  "Not yet cross-checked against the official text "
+                  "below."),
+            pady=(0, 4))
         tk.Label(host,
                  text=("Source of truth: Mississippi Board of "
                        "Pharmacy Regulations 4-24-26\n"
@@ -1357,10 +1369,7 @@ class PharmacyApp:
         host = self.make_scrollable(self.content_host)
         tk.Label(host, text="TPR (Third Party Rejection) Guide",
                  bg=BG, fg=TEXT, font=FONT_HEADING).pack(pady=12)
-        tk.Label(host,
-                 text="⚠ UNVERIFIED DATA — v13 source, not externally validated.",
-                 bg=BG, fg=RED, font=FONT_BODY, wraplength=360,
-                 justify="left").pack(padx=14, pady=(0, 8))
+        self._unverified_banner(host)
 
         tpr_data = [
             ("RTS (Refill Too Soon)",
@@ -1548,14 +1557,14 @@ class PharmacyApp:
         host = self.make_scrollable(self.content_host)
         tk.Label(host, text="Vaccine Eligibility", bg=BG, fg=TEXT,
                  font=FONT_HEADING).pack(pady=12)
-        tk.Label(host,
-                 text=("⚠ UNVERIFIED DATA — generated quick-reference, "
-                       "NOT cross-checked against the current schedule. "
-                       "Verify every age, dose count and interval before "
-                       "clinical use. Pharmacist administration scope "
-                       "varies by state and patient age."),
-                 bg=BG, fg=RED, font=FONT_BODY, wraplength=360,
-                 justify="left").pack(padx=14, pady=(0, 4))
+        self._unverified_banner(
+            host,
+            text=("⚠ UNVERIFIED DATA — generated quick-reference, "
+                  "NOT cross-checked against the current schedule. "
+                  "Verify every age, dose count and interval before "
+                  "clinical use. Pharmacist administration scope "
+                  "varies by state and patient age."),
+            pady=(0, 4))
         tk.Label(host,
                  text=("Source of truth: CDC/ACIP Immunization "
                        "Schedules\ncdc.gov/vaccines/schedules"),
@@ -1583,9 +1592,7 @@ class PharmacyApp:
         host = self.make_scrollable(self.content_host)
         tk.Label(host, text="SIG Decoder", bg=BG, fg=TEXT,
                  font=FONT_HEADING).pack(pady=12)
-        tk.Label(host, text="⚠ UNVERIFIED DATA — v13 source, not externally validated.",
-                 bg=BG, fg=RED, font=FONT_BODY, wraplength=360,
-                 justify="left").pack(padx=14, pady=(0, 8))
+        self._unverified_banner(host)
 
         inp_f = tk.Frame(host, bg=PANEL)
         inp_f.pack(fill="x", padx=14, pady=6)
@@ -1635,9 +1642,7 @@ class PharmacyApp:
         host = self.make_scrollable(self.content_host)
         tk.Label(host, text="Drug Lookup", bg=BG, fg=TEXT,
                  font=FONT_HEADING).pack(pady=12)
-        tk.Label(host, text="⚠ UNVERIFIED DATA — v13 source, not externally validated.",
-                 bg=BG, fg=RED, font=FONT_BODY, wraplength=360,
-                 justify="left").pack(padx=14, pady=(0, 8))
+        self._unverified_banner(host)
 
         inp_f = tk.Frame(host, bg=PANEL)
         inp_f.pack(fill="x", padx=14, pady=6)
