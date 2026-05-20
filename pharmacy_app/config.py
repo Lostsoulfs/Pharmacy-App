@@ -27,7 +27,7 @@ DB_FILE = os.path.join(os.path.expanduser("~"), "pharmacy_master.db")
 # key here is still False. Flip a key to True only once a pharmacist
 # has verified that dataset.
 DATA_VERIFIED = {
-    "brand_generic":     False,
+    "brand_generic":     True,    # verified 2026-05-20 (audit)
     "red_flags":         False,
     "lasa_pairs":        False,
     "sig_abbreviations": False,

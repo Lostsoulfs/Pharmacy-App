@@ -145,12 +145,13 @@ COMMON_RX_FLAGS = [
     ("amoxicillin",    "Confirm allergy history and pediatric weight-based dosing when applicable."),
 ]
 
-# BRAND_GENERIC — expanded to the PTCB "Top 200" drug set
-# (2026-05-20). Data salvaged from the May-18 crunch-mode bundle;
-# NOT externally verified — handle under the ADR-C05 UNVERIFIED rule
-# like the rest of this module. brand fields list common trade names
-# (slash-separated where several apply); drug_class is a coarse
-# therapeutic category for display only, not a clinical reference.
+# BRAND_GENERIC — the PTCB "Top 200" drug set (210 entries).
+# VERIFIED 2026-05-20: brand/generic pairs cross-checked against
+# FDA/DailyMed-class references; see
+# docs/audits/brand_generic_audit_2026-05-20.md. brand fields list
+# common trade names (slash-separated where several apply);
+# drug_class is a coarse therapeutic category for display only, not a
+# clinical reference.
 BRAND_GENERIC = [
     {"brand": "Lexapro", "generic": "Escitalopram", "drug_class": "SSRI antidepressant"},
     {"brand": "Roxicodone", "generic": "Oxycodone", "drug_class": "Opioid analgesic"},
@@ -162,7 +163,7 @@ BRAND_GENERIC = [
     {"brand": "Microzide/Aquazide H", "generic": "Hydrochlorothiazide", "drug_class": "Thiazide diuretic"},
     {"brand": "Norvasc", "generic": "Amlodipine", "drug_class": "Calcium channel blocker"},
     {"brand": "Xanax", "generic": "Alprazolam", "drug_class": "Benzodiazepine"},
-    {"brand": "Glumetza ER/Riomet/Glucophage/Fortamet", "generic": "Metformin", "drug_class": "Oral antidiabetic"},
+    {"brand": "Glumetza/Riomet/Glucophage/Fortamet", "generic": "Metformin", "drug_class": "Oral antidiabetic"},
     {"brand": "Lipitor", "generic": "Atorvastatin", "drug_class": "Statin"},
     {"brand": "Prilosec", "generic": "Omeprazole", "drug_class": "Proton-pump inhibitor"},
     {"brand": "Cipro/Cipro XR/Proquin", "generic": "Ciprofloxacin", "drug_class": "Fluoroquinolone"},
@@ -170,7 +171,7 @@ BRAND_GENERIC = [
     {"brand": "Clozaril", "generic": "Clozapine", "drug_class": "Antipsychotic"},
     {"brand": "Lasix", "generic": "Furosemide", "drug_class": "Loop diuretic"},
     {"brand": "Levitra", "generic": "Vardenafil", "drug_class": "PDE5 inhibitor"},
-    {"brand": "Sumycin/Ala-Tet/Brodspec", "generic": "Tetracycline", "drug_class": "Antibacterial"},
+    {"brand": "Sumycin/Ala-Tet/Brodspec", "generic": "Tetracycline", "drug_class": "Tetracycline antibacterial"},
     {"brand": "Heparin Sodium", "generic": "Heparin", "drug_class": "Anticoagulant"},
     {"brand": "Valcyte", "generic": "Valganciclovir", "drug_class": "Antiviral"},
     {"brand": "Lamictal", "generic": "Lamotrigine", "drug_class": "Anticonvulsant"},
@@ -204,7 +205,7 @@ BRAND_GENERIC = [
     {"brand": "Pravachol", "generic": "Pravastatin", "drug_class": "Statin"},
     {"brand": "Risperdal", "generic": "Risperidone", "drug_class": "Antipsychotic"},
     {"brand": "Lunesta", "generic": "Eszopiclone", "drug_class": "Z-drug/hypnotic"},
-    {"brand": "Celebrex", "generic": "Celecoxib", "drug_class": "COX-inhibitor/NSAID"},
+    {"brand": "Celebrex", "generic": "Celecoxib", "drug_class": "COX-2 selective NSAID"},
     {"brand": "Premarin", "generic": "Conjugated estrogens", "drug_class": "Estrogen replacement"},
     {"brand": "Avelox/Vigamox", "generic": "Moxifloxacin", "drug_class": "Fluoroquinolone"},
     {"brand": "Aricept", "generic": "Donepezil", "drug_class": "Acetylcholinesterase inhibitor"},
@@ -230,7 +231,7 @@ BRAND_GENERIC = [
     {"brand": "Januvia", "generic": "Sitagliptin", "drug_class": "Antidiabetic"},
     {"brand": "Reglan", "generic": "Metoclopramide", "drug_class": "Dopamine antagonist"},
     {"brand": "Relafen", "generic": "Nabumetone", "drug_class": "NSAID"},
-    {"brand": "Keflex", "generic": "Cefalexin", "drug_class": "Cephalosporin"},
+    {"brand": "Keflex", "generic": "Cephalexin", "drug_class": "Cephalosporin"},
     {"brand": "Effexor", "generic": "Venlafaxine", "drug_class": "SNRI"},
     {"brand": "Boniva", "generic": "Ibandronate", "drug_class": "Bisphosphonate"},
     {"brand": "Axid", "generic": "Nizatidine", "drug_class": "H2 receptor antagonist"},
@@ -252,7 +253,7 @@ BRAND_GENERIC = [
     {"brand": "Vasotec/Epaned", "generic": "Enalapril", "drug_class": "ACE inhibitor"},
     {"brand": "Tamiflu", "generic": "Oseltamivir", "drug_class": "Antiviral"},
     {"brand": "Requip", "generic": "Ropinirole", "drug_class": "Antiparkinsonian"},
-    {"brand": "Veetids (generic)", "generic": "Penicillin V potassium", "drug_class": "Beta-lactam antibacterial"},
+    {"brand": "Veetids", "generic": "Penicillin V potassium", "drug_class": "Beta-lactam antibacterial"},
     {"brand": "Strattera", "generic": "Atomoxetine", "drug_class": "Norepinephrine reuptake inhibitor"},
     {"brand": "Ambien", "generic": "Zolpidem", "drug_class": "Z-drug/hypnotic"},
     {"brand": "Advair", "generic": "Salmeterol/Fluticasone", "drug_class": "Beta-2 agonist/Inhaled corticosteroid"},
@@ -338,7 +339,7 @@ BRAND_GENERIC = [
     {"brand": "Inbrija/Dopar/Larodopa", "generic": "Levodopa", "drug_class": "Antiparkinsonian"},
     {"brand": "Actonel", "generic": "Risedronate", "drug_class": "Bisphosphonate"},
     {"brand": "Ventolin/ProAir/Proventil", "generic": "Albuterol", "drug_class": "Beta-2 agonist"},
-    {"brand": "Ultram", "generic": "Tramadol", "drug_class": "Opiate narcotic"},
+    {"brand": "Ultram", "generic": "Tramadol", "drug_class": "Opioid analgesic"},
     {"brand": "Sonata", "generic": "Zaleplon", "drug_class": "Z-drug/hypnotic"},
     {"brand": "Zebeta", "generic": "Bisoprolol", "drug_class": "Beta-blocker"},
     {"brand": "Zovirax", "generic": "Acyclovir", "drug_class": "Antiviral"},
