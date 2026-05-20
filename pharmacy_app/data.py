@@ -76,10 +76,30 @@ def init_db():
                 drug_name TEXT,
                 correct INTEGER,
                 total INTEGER,
+                ease_factor REAL,
+                interval_days INTEGER,
+                last_reviewed TEXT,
+                repetitions INTEGER,
                 PRIMARY KEY (tech_name, drug_name)
             );
             """
         )
+        # SRS columns (2026-05-20). Forward-only additive migration for
+        # DBs created under the pre-SRS MasteryStats schema — ADR-C01
+        # keeps no migration subsystem, but a one-shot ADD COLUMN is
+        # safe and idempotent. "duplicate column name" means a fresh DB
+        # already has it via the CREATE TABLE above; ignore only that.
+        for col, decl in (("ease_factor", "REAL"),
+                          ("interval_days", "INTEGER"),
+                          ("last_reviewed", "TEXT"),
+                          ("repetitions", "INTEGER")):
+            try:
+                conn.execute(
+                    "ALTER TABLE MasteryStats ADD COLUMN %s %s"
+                    % (col, decl))
+            except sqlite3.OperationalError as exc:
+                if "duplicate column name" not in str(exc):
+                    raise
         cur = conn.execute("SELECT COUNT(*) FROM Users WHERE role='admin'")
         if cur.fetchone()[0] == 0:
             conn.execute(

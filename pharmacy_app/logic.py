@@ -7,6 +7,7 @@ import-clean.
 
 import hashlib
 import math
+from datetime import datetime
 
 
 def hash_pin(pin_string):
@@ -291,28 +292,103 @@ def is_strong_pin(new_pin, old_pin=None):
     return True, ""
 
 
+def sm2_update(ease_factor, interval_days, repetitions, correct):
+    """SM-2 spaced-repetition update (binary correct/incorrect variant).
+
+    Reference: SuperMemo SM-2 algorithm (Piotr Wozniak, 1985).
+    Simplified to binary correct/incorrect — no 0-5 quality grading;
+    treats correct ~ quality 5, incorrect ~ quality 1.
+
+    Pure function. Returns (new_ease_factor, new_interval_days,
+    new_repetitions). Salvaged from the 2026-05-18 crunch bundle.
+
+    Inputs (all tolerate None / junk — fall back to first-review state):
+      ease_factor: float, current ease (2.5 on first review)
+      interval_days: int, days until the next review
+      repetitions: int, count of consecutive correct reviews
+      correct: bool, was the answer correct?
+
+    Algorithm:
+      Correct:  reps 0 -> interval 1; reps 1 -> interval 6;
+                reps >= 2 -> interval = round(prev_interval * ease);
+                reps += 1; ease += 0.1
+      Incorrect: interval = 0 (review again tomorrow); reps = 0;
+                ease -= 0.2
+      Ease is floored at 1.3 per classical SM-2."""
+    try:
+        ease = float(ease_factor) if ease_factor is not None else 2.5
+        interval = int(interval_days) if interval_days is not None else 0
+        reps = int(repetitions) if repetitions is not None else 0
+    except (ValueError, TypeError):
+        ease, interval, reps = 2.5, 0, 0
+    if not math.isfinite(ease):
+        ease = 2.5
+    # ease/interval/reps are only ever written by this function or
+    # NULL; enforce the invariants anyway (ease floored at the SM-2
+    # 1.3 minimum, schedule non-negative) so a corrupt stored value
+    # cannot produce a negative schedule that breaks random.choices.
+    ease = max(1.3, ease)
+    interval = max(0, interval)
+    reps = max(0, reps)
+    if correct:
+        if reps == 0:
+            new_interval = 1
+        elif reps == 1:
+            new_interval = 6
+        else:
+            new_interval = int(round(interval * ease))
+        new_reps = reps + 1
+        new_ease = ease + 0.1
+    else:
+        new_interval = 0
+        new_reps = 0
+        new_ease = ease - 0.2
+    new_ease = max(1.3, new_ease)
+    return new_ease, new_interval, new_reps
+
+
 def calculate_weight(tech_name, drug_name, conn):
     """C06-EARS: Quiz mastery weighting. Per-user, per-drug.
-    Returns weight for random.choices(). Higher weight = higher probability
-    of re-testing drugs the user has missed.
+    Returns int weight for random.choices(). Higher weight = higher
+    probability of the drug appearing in hard mode.
 
-    Behavior (carried from v13 show_question/calculate_weight):
-    - No prior stats: weight = 10 (base)
-    - Prior stats: weight = 10 + (5 * missed_count)
+    SM-2-aware (salvaged from the 2026-05-18 crunch bundle): when the
+    card has a review timestamp, weight by how overdue it is. Falls
+    back to the legacy miss-count weighting when the SRS columns are
+    NULL (a card seen only under the pre-SRS schema).
 
-    Consequence: drugs with prior misses are 5x more likely to appear,
-    encouraging remediation. Hard mode uses this for adaptive difficulty.
+    SM-2 path (last_reviewed populated):
+      overdue_days = days_since_reviewed - interval_days
+      overdue (>= 0): weight = min(50, 10 + overdue_days * 2)
+      not yet due:    weight = max(1, 10 + overdue_days)  [overdue < 0]
 
-    Note: DB is caller's responsibility; connection passed in for isolation.
-    If query fails, returns base weight (10) and logs nothing (per v13).
-    """
+    Legacy fallback path (no SRS data):
+      no stats:            weight = 10 (new card)
+      stats with misses:   weight = 10 + 5 * missed_count
+      stats, no misses:    weight = 1 (mastered)
+
+    Note: DB is caller's responsibility; connection passed in for
+    isolation. All errors swallow to base weight 10 (per v13)."""
     try:
         stats = conn.execute(
-            "SELECT correct, total FROM MasteryStats WHERE tech_name=? AND drug_name=?",
+            "SELECT correct, total, ease_factor, interval_days, "
+            "last_reviewed, repetitions FROM MasteryStats "
+            "WHERE tech_name=? AND drug_name=?",
             (tech_name, drug_name)
         ).fetchone()
         if not stats or stats["total"] == 0:
             return 10
+        if stats["last_reviewed"]:
+            try:
+                last = datetime.fromisoformat(stats["last_reviewed"])
+                days_since = (datetime.now() - last).days
+                interval = int(stats["interval_days"] or 0)
+                overdue = days_since - interval
+                if overdue >= 0:
+                    return min(50, 10 + overdue * 2)
+                return max(1, 10 + overdue)
+            except (ValueError, TypeError):
+                pass  # fall through to legacy path
         missed = stats["total"] - stats["correct"]
         if missed > 0:
             return 10 + (missed * 5)

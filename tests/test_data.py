@@ -206,9 +206,11 @@ def test_mastered_brands_empty_input(db):
 
 # --- db_weak_spots --------------------------------------------------
 def test_weak_spots_ranks_misses(db):
-    _raw_insert("INSERT INTO MasteryStats VALUES (?, ?, ?, ?)",
+    _raw_insert("INSERT INTO MasteryStats "
+                "(tech_name, drug_name, correct, total) VALUES (?, ?, ?, ?)",
                 ("Alice", "DrugA", 2, 10))             # missed 8
-    _raw_insert("INSERT INTO MasteryStats VALUES (?, ?, ?, ?)",
+    _raw_insert("INSERT INTO MasteryStats "
+                "(tech_name, drug_name, correct, total) VALUES (?, ?, ?, ?)",
                 ("Alice", "DrugB", 9, 10))             # missed 1
     weak = db.db_weak_spots("Alice")
     assert weak[0][0] == "DrugA"                       # most-missed first
@@ -289,7 +291,8 @@ def test_calculate_weight_no_stats_returns_base(db):
 
 def test_calculate_weight_scales_with_misses(db):
     # missed = total - correct = 10 - 4 = 6 -> weight = 10 + 6*5 = 40
-    _raw_insert("INSERT INTO MasteryStats VALUES (?, ?, ?, ?)",
+    _raw_insert("INSERT INTO MasteryStats "
+                "(tech_name, drug_name, correct, total) VALUES (?, ?, ?, ?)",
                 ("Alice", "Lipitor", 4, 10))
     conn = db.get_db_connection()
     try:
@@ -299,7 +302,8 @@ def test_calculate_weight_scales_with_misses(db):
 
 
 def test_calculate_weight_all_correct_returns_one(db):
-    _raw_insert("INSERT INTO MasteryStats VALUES (?, ?, ?, ?)",
+    _raw_insert("INSERT INTO MasteryStats "
+                "(tech_name, drug_name, correct, total) VALUES (?, ?, ?, ?)",
                 ("Alice", "Zoloft", 10, 10))
     conn = db.get_db_connection()
     try:
@@ -310,10 +314,89 @@ def test_calculate_weight_all_correct_returns_one(db):
 
 def test_calculate_weight_single_miss_boundary(db):
     # missed == 1 boundary: 10 + 1*5 = 15 (kills the missed>0 -> >1 mutant)
-    _raw_insert("INSERT INTO MasteryStats VALUES (?, ?, ?, ?)",
+    _raw_insert("INSERT INTO MasteryStats "
+                "(tech_name, drug_name, correct, total) VALUES (?, ?, ?, ?)",
                 ("Alice", "Mobic", 9, 10))
     conn = db.get_db_connection()
     try:
         assert calculate_weight("Alice", "Mobic", conn) == 15
     finally:
         conn.close()
+
+
+# --- MasteryStats SRS columns + migration ---------------------------
+def _mastery_columns():
+    conn = D.get_db_connection()
+    try:
+        rows = conn.execute("PRAGMA table_info(MasteryStats)").fetchall()
+    finally:
+        conn.close()
+    return {r["name"] for r in rows}
+
+
+def test_fresh_db_has_srs_columns(db):
+    cols = _mastery_columns()
+    for c in ("ease_factor", "interval_days", "last_reviewed",
+              "repetitions"):
+        assert c in cols
+
+
+def test_init_db_migrates_pre_srs_mastery_table(tmp_path, monkeypatch):
+    # a DB created under the OLD 4-column MasteryStats schema must gain
+    # the SRS columns when init_db() runs, without losing existing rows
+    monkeypatch.setattr(D, "DB_FILE", str(tmp_path / "legacy.db"))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    conn = D.get_db_connection()
+    try:
+        conn.execute(
+            "CREATE TABLE MasteryStats (tech_name TEXT, drug_name TEXT, "
+            "correct INTEGER, total INTEGER, "
+            "PRIMARY KEY (tech_name, drug_name))")
+        conn.execute("INSERT INTO MasteryStats "
+                     "(tech_name, drug_name, correct, total) "
+                     "VALUES ('Alice', 'Lipitor', 3, 5)")
+        conn.commit()
+    finally:
+        conn.close()
+    D.init_db()                                    # runs the ALTER pass
+    cols = _mastery_columns()
+    assert {"ease_factor", "interval_days", "last_reviewed",
+            "repetitions"} <= cols
+    conn = D.get_db_connection()
+    try:
+        row = conn.execute(
+            "SELECT correct, total, ease_factor FROM MasteryStats "
+            "WHERE drug_name='Lipitor'").fetchone()
+    finally:
+        conn.close()
+    assert row["correct"] == 3 and row["total"] == 5  # old data intact
+    assert row["ease_factor"] is None                 # new col defaults NULL
+    D.init_db()                                    # second run is a no-op
+
+
+def test_calculate_weight_srs_overdue_outranks_due(db):
+    from datetime import datetime, timedelta
+    long_ago = (datetime.now() - timedelta(days=40)).isoformat(
+        timespec="seconds")
+    just_now = datetime.now().isoformat(timespec="seconds")
+    # overdue card: reviewed 40d ago, interval only 1 day
+    _raw_insert(
+        "INSERT INTO MasteryStats (tech_name, drug_name, correct, total, "
+        "ease_factor, interval_days, last_reviewed, repetitions) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        ("Alice", "Lipitor", 5, 5, 2.5, 1, long_ago, 3))
+    # not-yet-due card: reviewed just now, interval 30 days
+    _raw_insert(
+        "INSERT INTO MasteryStats (tech_name, drug_name, correct, total, "
+        "ease_factor, interval_days, last_reviewed, repetitions) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        ("Alice", "Zoloft", 5, 5, 2.5, 30, just_now, 3))
+    conn = db.get_db_connection()
+    try:
+        overdue = calculate_weight("Alice", "Lipitor", conn)
+        not_due = calculate_weight("Alice", "Zoloft", conn)
+    finally:
+        conn.close()
+    assert overdue == 50            # min(50, 10 + 39*2) -> capped at 50
+    assert not_due == max(1, 10 - 30)  # deep not-due -> floored at 1
+    assert overdue > not_due

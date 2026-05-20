@@ -23,7 +23,7 @@ from .logic import (calc_insulin_logic, calc_days_supply_logic,
                     verify_dea_logic, dea_registrant_type,
                     calc_crcl_cockcroft_gault, calc_bsa_mosteller,
                     calc_peds_dose, answer_matches, is_strong_pin,
-                    calculate_weight)
+                    calculate_weight, sm2_update)
 from .data import (get_db_connection, init_db, db_log_audit, db_add_user,
                     db_remove_user, db_verify_pin, db_list_users,
                     db_get_state, db_set_state, db_perf, db_list_backups,
@@ -555,21 +555,36 @@ class PharmacyApp:
                         (self.user, drug_name)
                     )
                 cursor.execute(
-                    "SELECT total, correct FROM MasteryStats WHERE tech_name=? AND drug_name=?",
+                    "SELECT total, correct, ease_factor, interval_days, "
+                    "repetitions FROM MasteryStats "
+                    "WHERE tech_name=? AND drug_name=?",
                     (self.user, drug_name)
                 )
                 row = cursor.fetchone()
+                now_iso = datetime.now().isoformat(timespec="seconds")
                 if row:
+                    ease, interval, reps = sm2_update(
+                        row["ease_factor"], row["interval_days"],
+                        row["repetitions"], is_correct)
                     new_total = row["total"] + 1
                     new_correct = row["correct"] + (1 if is_correct else 0)
                     cursor.execute(
-                        "UPDATE MasteryStats SET total=?, correct=? WHERE tech_name=? AND drug_name=?",
-                        (new_total, new_correct, self.user, drug_name)
+                        "UPDATE MasteryStats SET total=?, correct=?, "
+                        "ease_factor=?, interval_days=?, repetitions=?, "
+                        "last_reviewed=? WHERE tech_name=? AND drug_name=?",
+                        (new_total, new_correct, ease, interval, reps,
+                         now_iso, self.user, drug_name)
                     )
                 else:
+                    ease, interval, reps = sm2_update(
+                        None, None, None, is_correct)
                     cursor.execute(
-                        "INSERT INTO MasteryStats (tech_name, drug_name, total, correct) VALUES (?, ?, 1, ?)",
-                        (self.user, drug_name, 1 if is_correct else 0)
+                        "INSERT INTO MasteryStats (tech_name, drug_name, "
+                        "total, correct, ease_factor, interval_days, "
+                        "repetitions, last_reviewed) "
+                        "VALUES (?, ?, 1, ?, ?, ?, ?, ?)",
+                        (self.user, drug_name, 1 if is_correct else 0,
+                         ease, interval, reps, now_iso)
                     )
                 conn.commit()
             except Exception:

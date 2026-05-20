@@ -24,6 +24,7 @@ from pharmacy_app.logic import (  # noqa: E402
     hash_pin, calc_insulin_logic, verify_dea_logic, calc_days_supply_logic,
     normalize_answer, answer_matches, is_strong_pin, dea_registrant_type,
     calc_crcl_cockcroft_gault, calc_bsa_mosteller, calc_peds_dose,
+    sm2_update,
 )
 
 # Strategies ----------------------------------------------------------
@@ -249,6 +250,44 @@ def test_calculator_zero_lower_bounds_rejected():
 def test_insulin_daily_one_is_valid():
     # daily=1 is valid (>0); kills the daily<=0 -> daily<=1 mutant
     assert calc_insulin_logic(1, 10, 100) == 1000
+
+
+# --- sm2_update ------------------------------------------------------
+# sm2_update only ever reads SRS state it previously wrote (or NULL):
+# a finite ease >= 1.3, a non-negative interval, a non-negative reps.
+# These strategies cover that real stored-state domain plus NULL.
+sm2_ease = st.one_of(st.none(),
+                     st.floats(min_value=1.3, max_value=100))
+sm2_interval = st.one_of(st.none(), st.integers(min_value=0,
+                                                max_value=10_000))
+sm2_reps = st.one_of(st.none(), st.integers(min_value=0, max_value=1_000))
+
+
+@given(sm2_ease, sm2_interval, sm2_reps, st.booleans())
+def test_sm2_update_invariants_hold(ease, interval, reps, correct):
+    new_ease, new_interval, new_reps = sm2_update(
+        ease, interval, reps, correct)
+    # ease floored at 1.3 and always a finite float
+    assert isinstance(new_ease, float) and math.isfinite(new_ease)
+    assert new_ease >= 1.3
+    # interval and repetitions are non-negative ints
+    assert isinstance(new_interval, int) and new_interval >= 0
+    assert isinstance(new_reps, int) and new_reps >= 0
+    # incorrect always resets the schedule; correct always advances reps
+    if correct:
+        assert new_reps >= 1
+    else:
+        assert new_reps == 0 and new_interval == 0
+
+
+@given(st.floats(min_value=1.3, max_value=5.0),
+       st.integers(min_value=0, max_value=10_000),
+       st.integers(min_value=2, max_value=500))
+def test_sm2_update_correct_grows_interval(ease, interval, reps):
+    # for an established card (reps>=2) a correct answer never shortens
+    # the interval — spaced repetition only stretches it out
+    _, new_interval, _ = sm2_update(ease, interval, reps, True)
+    assert new_interval >= interval
 
 
 def test_dea_registrant_all_prefixes():

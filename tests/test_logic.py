@@ -23,6 +23,7 @@ from pharmacy_app.logic import (  # noqa: E402
     hash_pin, calc_insulin_logic, verify_dea_logic, calc_days_supply_logic,
     normalize_answer, answer_matches, is_strong_pin, dea_registrant_type,
     calc_crcl_cockcroft_gault, calc_bsa_mosteller, calc_peds_dose,
+    sm2_update,
 )
 
 
@@ -120,6 +121,45 @@ def test_calc_peds_dose():
     assert raises_valueerror(calc_peds_dose, 0, 90, 2, 50)       # L-PD-02
     mg2, ml2 = calc_peds_dose(10, 40, 4, 25)
     assert near(mg2, 100.0) and near(ml2, 4.0)                   # L-PD-03
+
+
+# --- sm2_update (SM-2 spaced repetition) ----------------------------
+def test_sm2_update_first_review():
+    # fresh card (None state), correct -> reps 1, interval 1, ease up
+    ease, interval, reps = sm2_update(None, None, None, True)
+    assert (ease, interval, reps) == (2.6, 1, 1)
+
+
+def test_sm2_update_interval_ladder():
+    # the classic SM-2 interval ladder for consecutive correct answers
+    ease, interval, reps = sm2_update(2.5, 0, 0, True)
+    assert (interval, reps) == (1, 1)
+    ease, interval, reps = sm2_update(ease, interval, reps, True)
+    assert (interval, reps) == (6, 2)               # reps 1 -> 6 days
+    ease_before = ease
+    ease, interval, reps = sm2_update(ease, interval, reps, True)
+    # reps>=2 -> interval = prev_interval * ease (pre-increment ease)
+    assert interval == round(6 * ease_before) and reps == 3
+
+
+def test_sm2_update_incorrect_resets():
+    # wrong answer: interval 0, reps 0, ease drops by 0.2
+    ease, interval, reps = sm2_update(2.5, 30, 5, False)
+    assert (ease, interval, reps) == (2.3, 0, 0)
+
+
+def test_sm2_update_ease_floored_at_1_3():
+    # repeated failures cannot drive ease below the 1.3 SM-2 floor
+    ease = 1.3
+    for _ in range(5):
+        ease, _, _ = sm2_update(ease, 10, 3, False)
+    assert ease == 1.3
+
+
+def test_sm2_update_handles_junk_input():
+    # garbage state must fall back to first-review defaults, not raise
+    ease, interval, reps = sm2_update("nonsense", "x", None, True)
+    assert (ease, interval, reps) == (2.6, 1, 1)
 
 
 if __name__ == "__main__":
