@@ -15,7 +15,6 @@ MAX_LOG_ENTRIES = 10000  # A7 fix 2026-05-19: bumped from 500.
 # pharmacist scaling enters scope.
 LOCKOUT_THRESHOLD = 3
 LOCKOUT_SECONDS = 300
-PRUNE_EVERY = 50
 RESERVED_TECH_NAMES = {'admin', 'global', 'system', 'pharmacist'}
 
 # Fresh DB; legacy filename retired with the migration subsystem
