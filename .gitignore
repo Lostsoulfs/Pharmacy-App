@@ -12,3 +12,5 @@ pharmacy_master.db
 mutants/
 .mutmut-cache
 html/
+.mypy_cache/
+.ruff_cache/

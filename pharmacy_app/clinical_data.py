@@ -1,7 +1,8 @@
 """Clinical reference data — carried verbatim from v13 per ADR-C05.
 
 NOT externally verified. Any UI panel that renders an entry from these
-structures MUST show the UNVERIFIED warning (config.CLINICAL_DATA_UNVERIFIED).
+structures MUST show the UNVERIFIED warning until the dataset's key in
+config.DATA_VERIFIED is flipped True.
 """
 
 RED_FLAGS = [

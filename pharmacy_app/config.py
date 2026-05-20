@@ -22,6 +22,26 @@ RESERVED_TECH_NAMES = {'admin', 'global', 'system', 'pharmacist'}
 # (ADR-002): expanduser("~") -> /data/user/0/ru.iiec.pydroid3/app_HOME
 DB_FILE = os.path.join(os.path.expanduser("~"), "pharmacy_master.db")
 
-# UNVERIFIED clinical/law data carried as-is per ADR-C05; the UI layer
-# MUST render this flag visibly next to any clinical/law entry.
-CLINICAL_DATA_UNVERIFIED = True
+# Per-dataset verification (replaces the ADR-C05 global flag). The UI
+# layer MUST render the UNVERIFIED warning next to any dataset whose
+# key here is still False. Flip a key to True only once a pharmacist
+# has verified that dataset.
+DATA_VERIFIED = {
+    "brand_generic":     False,
+    "red_flags":         False,
+    "lasa_pairs":        False,
+    "sig_abbreviations": False,
+    "common_rx_flags":   False,
+    "vaccines":          False,
+    "law":               False,   # panel_law hardcoded bullets
+    "tpr":               False,   # panel_tpr hardcoded guide
+}
+
+
+def is_unverified(domains):
+    """True if the UNVERIFIED banner should show — i.e. any listed
+    domain is not yet verified. Empty/unknown keys fail safe to
+    unverified (banner shows)."""
+    if not domains:
+        return True
+    return not all(DATA_VERIFIED.get(d, False) for d in domains)
