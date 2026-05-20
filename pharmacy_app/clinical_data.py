@@ -1,0 +1,106 @@
+"""Clinical reference data — carried verbatim from v13 per ADR-C05.
+
+NOT externally verified. Any UI panel that renders an entry from these
+structures MUST show the UNVERIFIED warning (config.CLINICAL_DATA_UNVERIFIED).
+"""
+
+RED_FLAGS = [
+    {"q": "Patient picking up Warfarin and Advil (Ibuprofen)?",
+     "a": "Bleeding Risk",
+     "rationale": "NSAIDs increase blood-thinning effects."},
+    {"q": "C-II Codeine syrup from out-of-state dentist?",
+     "a": "Diversion Risk",
+     "rationale": "Common red flag for forged scripts."},
+    {"q": "Cash price for 90-day supply of Oxycodone?",
+     "a": "Pharmacist Review",
+     "rationale": "High volume C-II cash payments require pharmacist override."},
+]
+
+LASA_PAIRS = [
+    {"q": "Look-Alike: Hydroxyzine vs Hydralazine. Which is for Itching?",
+     "a": "Hydroxyzine",
+     "rationale": "Hydralazine is for blood pressure."},
+    {"q": "Sound-Alike: Humalog vs Humulin. Which is rapid-acting?",
+     "a": "Humalog",
+     "rationale": "Humulin is intermediate-acting."},
+    {"q": "Look-Alike: Zyrtec vs Zyprexa. Which is for allergies?",
+     "a": "Zyrtec",
+     "rationale": "Zyprexa is an antipsychotic."},
+]
+
+SIG_ABBREVIATIONS = {
+    "QD": "once daily", "QDAY": "once daily",
+    "BID": "twice daily", "TID": "three times daily",
+    "QID": "four times daily", "QHS": "at bedtime",
+    "QAM": "every morning", "QPM": "every evening",
+    "PRN": "as needed", "PO": "by mouth",
+    "SL": "under the tongue", "TOP": "apply topically",
+    "OU": "both eyes", "OD": "right eye", "OS": "left eye",
+    "AU": "both ears", "AD": "right ear", "AS": "left ear",
+    "AC": "before meals", "PC": "after meals",
+    "Q4H": "every 4 hours", "Q6H": "every 6 hours",
+    "Q8H": "every 8 hours", "Q12H": "every 12 hours",
+    "UD": "as directed", "AAA": "apply to affected area",
+    "NTE": "not to exceed",
+}
+
+COMMON_RX_FLAGS = [
+    ("warfarin",       "NSAID / aspirin / antibiotic interactions: pharmacist review."),
+    ("methotrexate",   "Weekly dosing risk. Verify not accidentally entered daily."),
+    ("insulin",        "Confirm type, concentration, max daily dose, and days supply."),
+    ("levothyroxine",  "Separate from calcium/iron; consistency matters."),
+    ("tramadol",       "Controlled-substance workflow; serotonin/seizure-risk screen."),
+    ("alprazolam",     "Controlled-substance workflow; sedation/duplicate benzo screen."),
+    ("amoxicillin",    "Confirm allergy history and pediatric weight-based dosing when applicable."),
+]
+
+BRAND_GENERIC = [
+    {"brand": "Lipitor",    "generic": "Atorvastatin"},
+    {"brand": "Synthroid",  "generic": "Levothyroxine"},
+    {"brand": "Prinivil",   "generic": "Lisinopril"},
+    {"brand": "Glucophage", "generic": "Metformin"},
+    {"brand": "Zocor",      "generic": "Simvastatin"},
+    {"brand": "Cozaar",     "generic": "Losartan"},
+    {"brand": "Prilosec",   "generic": "Omeprazole"},
+    {"brand": "Neurontin",  "generic": "Gabapentin"},
+    {"brand": "Norvasc",    "generic": "Amlodipine"},
+    {"brand": "Vicodin",    "generic": "Hydrocodone/APAP"},
+    {"brand": "Zoloft",     "generic": "Sertraline"},
+    {"brand": "ProAir",     "generic": "Albuterol"},
+    {"brand": "Flonase",    "generic": "Fluticasone"},
+    {"brand": "Singulair",  "generic": "Montelukast"},
+    {"brand": "Amoxil",     "generic": "Amoxicillin"},
+    {"brand": "Mobic",      "generic": "Meloxicam"},
+    {"brand": "Plavix",     "generic": "Clopidogrel"},
+    {"brand": "Lexapro",    "generic": "Escitalopram"},
+    {"brand": "Crestor",    "generic": "Rosuvastatin"},
+    {"brand": "Advil",      "generic": "Ibuprofen"},
+    {"brand": "Tylenol",    "generic": "Acetaminophen"},
+    {"brand": "Lasix",      "generic": "Furosemide"},
+    {"brand": "Desyrel",    "generic": "Trazodone"},
+    {"brand": "Cymbalta",   "generic": "Duloxetine"},
+    {"brand": "Klor-Con",   "generic": "Potassium Chloride"},
+    {"brand": "Toprol XL",  "generic": "Metoprolol Succinate"},
+    {"brand": "Lopressor",  "generic": "Metoprolol Tartrate"},
+    {"brand": "Zantac",     "generic": "Ranitidine"},
+    {"brand": "Pravachol",  "generic": "Pravastatin"},
+    {"brand": "Coreg",      "generic": "Carvedilol"},
+    {"brand": "Ultram",     "generic": "Tramadol"},
+    {"brand": "Valium",     "generic": "Diazepam"},
+    {"brand": "Xanax",      "generic": "Alprazolam"},
+    {"brand": "Klonopin",   "generic": "Clonazepam"},
+    {"brand": "Ativan",     "generic": "Lorazepam"},
+    {"brand": "Coumadin",   "generic": "Warfarin"},
+    {"brand": "Flomax",     "generic": "Tamsulosin"},
+    {"brand": "Tenormin",   "generic": "Atenolol"},
+    {"brand": "Effexor",    "generic": "Venlafaxine"},
+    {"brand": "Seroquel",   "generic": "Quetiapine"},
+    {"brand": "Risperdal",  "generic": "Risperidone"},
+    {"brand": "Paxil",      "generic": "Paroxetine"},
+    {"brand": "Prozac",     "generic": "Fluoxetine"},
+    {"brand": "Wellbutrin", "generic": "Bupropion"},
+    {"brand": "Adderall",   "generic": "Amphetamine/Dextroamphetamine"},
+    {"brand": "Concerta",   "generic": "Methylphenidate"},
+    {"brand": "Flexeril",   "generic": "Cyclobenzaprine"},
+    {"brand": "Zanaflex",   "generic": "Tizanidine"},
+]
