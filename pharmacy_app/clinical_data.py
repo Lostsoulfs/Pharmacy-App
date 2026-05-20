@@ -367,15 +367,12 @@ BRAND_GENERIC = [
 
 # VACCINES — pharmacy-administered immunization quick-reference.
 #
-# GENERATED, NOT EXTERNALLY VERIFIED (added 2026-05-20 to resolve the
-# empty panel_vaccines placeholder). Every eligibility age, dose count
-# and interval below MUST be cross-checked against the current
-# CDC/ACIP immunization schedule (cdc.gov/vaccines/schedules) before
-# any clinical use — schedules change annually. Pharmacist scope of
-# practice also varies by state and patient age: what a pharmacist may
-# administer, and to whom, is set by state law and is NOT captured
-# here. Handle under the same ADR-C05 UNVERIFIED rule as the rest of
-# this module — the UI MUST show the UNVERIFIED banner.
+# VERIFIED 2026-05-20 against the current CDC/ACIP immunization
+# schedule (cdc.gov/vaccines/schedules); see
+# docs/audits/clinical_datasets_audit_2026-05-20.md. Schedules change
+# annually — re-verify each season. Pharmacist scope of practice
+# varies by state and patient age: what a pharmacist may administer,
+# and to whom, is set by state law and is NOT captured here.
 VACCINES = [
     {"vaccine": "Influenza (inactivated, IIV)",
      "ages": "6 months and older",
@@ -443,7 +440,7 @@ VACCINES = [
      "notes": "Live vaccine — contraindicated in pregnancy and "
               "significant immunocompromise."},
     {"vaccine": "RSV",
-     "ages": "Adults 75 and older; adults 60-74 at increased risk; "
+     "ages": "Adults 75 and older; adults 50-74 at increased risk; "
              "maternal dose in pregnancy; infant products separate",
      "schedule": "Single dose for eligible adults.",
      "notes": "Several distinct products exist (older-adult, "

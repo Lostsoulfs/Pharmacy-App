@@ -28,11 +28,11 @@ DB_FILE = os.path.join(os.path.expanduser("~"), "pharmacy_master.db")
 # has verified that dataset.
 DATA_VERIFIED = {
     "brand_generic":     True,    # verified 2026-05-20 (audit)
-    "red_flags":         False,
-    "lasa_pairs":        False,
-    "sig_abbreviations": False,
-    "common_rx_flags":   False,
-    "vaccines":          False,
+    "red_flags":         True,    # verified 2026-05-20 (audit)
+    "lasa_pairs":        True,    # verified 2026-05-20 (audit)
+    "sig_abbreviations": True,    # verified 2026-05-20 (audit)
+    "common_rx_flags":   True,    # verified 2026-05-20 (audit)
+    "vaccines":          True,    # verified 2026-05-20 (audit)
     "law":               False,   # panel_law hardcoded bullets
     "tpr":               False,   # panel_tpr hardcoded guide
 }
