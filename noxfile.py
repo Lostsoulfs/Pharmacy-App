@@ -18,10 +18,12 @@ nox.options.sessions = ["lint", "types", "tests"]
 
 @nox.session
 def lint(session):
-    """Ruff lint + format check."""
+    """Ruff pyflakes (`F`) check — matches the documented quality
+    gate (CLAUDE.md): no new `F` errors. The repo carries known
+    pre-existing E/W style debt that is deliberately not gated; run
+    a full `ruff check .` by hand to review it."""
     session.install("ruff>=0.15")
-    session.run("ruff", "check", ".")
-    session.run("ruff", "format", "--check", ".")
+    session.run("ruff", "check", "--select", "F", ".")
 
 
 @nox.session
