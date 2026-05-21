@@ -501,7 +501,9 @@ class PharmacyApp:
                         for d in drugs
                     ]
                     self.current_drug = random.choices(drugs, weights=weights, k=1)[0]
-                except Exception:
+                except sqlite3.Error:
+                    # DB unavailable -> uniform random fallback; a
+                    # non-DB error is a real bug and now propagates.
                     self.current_drug = random.choice(drugs)
                 finally:
                     if conn:
@@ -597,8 +599,10 @@ class PharmacyApp:
                          ease, interval, reps, now_iso)
                     )
                 conn.commit()
-            except Exception:
-                pass  # Silent fail; mastery tracking non-critical
+            except sqlite3.Error:
+                # Swallow DB errors only (mastery tracking is
+                # non-critical); a real bug now propagates instead.
+                pass
             finally:
                 if conn:
                     conn.close()
@@ -622,8 +626,10 @@ class PharmacyApp:
         if self.quiz_total >= 10:
             try:
                 db_record_score(self.user, self.quiz_score, 10)
-            except Exception:
-                pass  # Silent fail; score save non-critical
+            except sqlite3.Error:
+                # Swallow DB errors only (score save is non-critical);
+                # a real bug now propagates instead.
+                pass
             self.navigate_to("home")
         else:
             self.show_question()
@@ -1456,6 +1462,16 @@ class PharmacyApp:
         if not drug or not patient or not date:
             messagebox.showerror(
                 "Partial", "Drug, patient, and date are required.")
+            return
+        # Mirror the A4 fix in _admin_add_inv: PartialFills.date is
+        # sorted lexicographically, so a non-ISO date sorts wrong.
+        import re as _re
+        if (not _re.fullmatch(r"\d{4}-\d{2}-\d{2}", date)
+                or not _date_is_valid(date)):
+            messagebox.showerror(
+                "Partial",
+                "Date must be YYYY-MM-DD (zero-padded, "
+                "e.g. 2026-05-21).")
             return
         conn = get_db_connection()
         try:
