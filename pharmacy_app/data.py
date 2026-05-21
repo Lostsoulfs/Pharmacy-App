@@ -6,7 +6,7 @@ All writes parameterized. Headlessly testable (sqlite only, no tkinter).
 
 import os
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from .config import DB_FILE, MAX_LOG_ENTRIES, RESERVED_TECH_NAMES
 from .logic import hash_pin
@@ -535,3 +535,96 @@ def ptcb_readiness(tech):
     mastered = sum(1 for r in rows if r["drug_name"] in pool)
     pct = int((mastered / total) * 100)
     return mastered, total, pct
+
+
+# ---- panel-facing read helpers (extracted from app.py, finding M1) ----
+
+def db_inventory_expiring(within_days=30, today=None):
+    """Inventory rows whose exp_date falls on or before
+    today + within_days, soonest first. `today` defaults to now;
+    a 'YYYY-MM-DD' string is also accepted (for deterministic tests).
+    Returns list of (drug_name, exp_date)."""
+    if today is None:
+        base = datetime.now()
+    elif isinstance(today, str):
+        base = datetime.strptime(today, "%Y-%m-%d")
+    else:
+        base = today
+    cutoff = (base + timedelta(days=within_days)).strftime("%Y-%m-%d")
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(
+            "SELECT drug_name, exp_date FROM Inventory "
+            "WHERE exp_date <= ? ORDER BY exp_date ASC, drug_name ASC",
+            (cutoff,)
+        ).fetchall()
+    finally:
+        conn.close()
+    return [(r["drug_name"], r["exp_date"]) for r in rows]
+
+
+def db_inventory_list(name_filter=""):
+    """All Inventory rows ordered by exp_date then drug_name. When
+    name_filter is non-empty, restrict to drug_name LIKE %filter%
+    with LIKE wildcards escaped. Returns list of (drug_name,
+    exp_date)."""
+    conn = get_db_connection()
+    try:
+        if name_filter:
+            pat = "%" + _like_escape(name_filter) + "%"
+            rows = conn.execute(
+                "SELECT drug_name, exp_date FROM Inventory "
+                "WHERE drug_name LIKE ? ESCAPE '\\' "
+                "ORDER BY exp_date, drug_name",
+                (pat,)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT drug_name, exp_date FROM Inventory "
+                "ORDER BY exp_date, drug_name"
+            ).fetchall()
+    finally:
+        conn.close()
+    return [(r["drug_name"], r["exp_date"]) for r in rows]
+
+
+def db_audit_log(text_filter="", limit=50):
+    """Most recent AuditLog rows, newest first, capped at `limit`.
+    When text_filter is non-empty, match user OR action LIKE
+    %filter% with LIKE wildcards escaped. Returns list of
+    (timestamp, user, action)."""
+    conn = get_db_connection()
+    try:
+        if text_filter:
+            like = "%" + _like_escape(text_filter) + "%"
+            rows = conn.execute(
+                "SELECT timestamp, user, action FROM AuditLog "
+                "WHERE user LIKE ? ESCAPE '\\' "
+                "OR action LIKE ? ESCAPE '\\' "
+                "ORDER BY id DESC LIMIT ?",
+                (like, like, int(limit))
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT timestamp, user, action FROM AuditLog "
+                "ORDER BY id DESC LIMIT ?",
+                (int(limit),)
+            ).fetchall()
+    finally:
+        conn.close()
+    return [(r["timestamp"], r["user"], r["action"]) for r in rows]
+
+
+def db_open_partials():
+    """Open (resolved=0) partial fills, newest first. Returns list
+    of (id, drug, qty_owed, patient, date)."""
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(
+            "SELECT id, drug, qty_owed, patient, date FROM PartialFills "
+            "WHERE resolved=0 ORDER BY date DESC, id DESC"
+        ).fetchall()
+    finally:
+        conn.close()
+    return [(r["id"], r["drug"], r["qty_owed"], r["patient"], r["date"])
+            for r in rows]

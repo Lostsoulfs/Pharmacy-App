@@ -400,3 +400,60 @@ def test_calculate_weight_srs_overdue_outranks_due(db):
     assert overdue == 50            # min(50, 10 + 39*2) -> capped at 50
     assert not_due == max(1, 10 - 30)  # deep not-due -> floored at 1
     assert overdue > not_due
+
+
+# --- panel read helpers (finding M1) --------------------------------
+def test_db_inventory_expiring_window(db):
+    _raw_insert("INSERT INTO Inventory VALUES (?, ?)",
+                ("Aspirin", "2026-06-01"))      # within 30d of 2026-05-21
+    _raw_insert("INSERT INTO Inventory VALUES (?, ?)",
+                ("Lipitor", "2027-01-01"))      # far future
+    rows = db.db_inventory_expiring(within_days=30, today="2026-05-21")
+    assert rows == [("Aspirin", "2026-06-01")]
+
+
+def test_db_inventory_expiring_includes_already_expired(db):
+    _raw_insert("INSERT INTO Inventory VALUES (?, ?)",
+                ("Old", "2020-01-01"))
+    rows = db.db_inventory_expiring(within_days=30, today="2026-05-21")
+    assert ("Old", "2020-01-01") in rows
+
+
+def test_db_inventory_list_all_and_filtered(db):
+    _raw_insert("INSERT INTO Inventory VALUES (?, ?)",
+                ("Amoxicillin", "2026-09-01"))
+    _raw_insert("INSERT INTO Inventory VALUES (?, ?)",
+                ("Lisinopril", "2026-08-01"))
+    assert len(db.db_inventory_list()) == 2
+    assert db.db_inventory_list("amox") == [("Amoxicillin", "2026-09-01")]
+    assert db.db_inventory_list("zzz") == []
+
+
+def test_db_inventory_list_escapes_like_wildcards(db):
+    _raw_insert("INSERT INTO Inventory VALUES (?, ?)",
+                ("Drug100", "2026-08-01"))
+    # a literal '%' must not behave as a wildcard
+    assert db.db_inventory_list("%") == []
+
+
+def test_db_audit_log_filter_and_limit(db):
+    db.db_log_audit("Alice", "Logged In")
+    db.db_log_audit("Bob", "Removed tech: Carol")
+    full = db.db_audit_log()
+    assert len(full) == 2
+    assert full[0][1] == "Bob"                  # newest first
+    assert len(db.db_audit_log(limit=1)) == 1
+    hits = db.db_audit_log("Carol")             # matches action text
+    assert len(hits) == 1 and hits[0][1] == "Bob"
+
+
+def test_db_open_partials(db):
+    _raw_insert(
+        "INSERT INTO PartialFills (drug, qty_owed, patient, date) "
+        "VALUES (?, ?, ?, ?)", ("Adderall", 30, "J. Doe", "2026-05-20"))
+    _raw_insert(
+        "INSERT INTO PartialFills (drug, qty_owed, patient, date, resolved) "
+        "VALUES (?, ?, ?, ?, 1)", ("Xanax", 10, "R. Roe", "2026-05-19"))
+    rows = db.db_open_partials()
+    assert len(rows) == 1                       # resolved row excluded
+    assert rows[0][1:] == ("Adderall", 30, "J. Doe", "2026-05-20")

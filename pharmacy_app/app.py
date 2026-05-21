@@ -10,7 +10,7 @@ import time
 import random
 import difflib
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime
 import tkinter as tk
 from tkinter import simpledialog, messagebox
 
@@ -34,7 +34,8 @@ from .data import (get_db_connection, init_db, db_log_audit, db_add_user,
                     db_expired_inventory, db_backup, db_export_inventory,
                     db_export_audit_log, db_mastered_brands,
                     db_recent_scores, db_weak_spots, ptcb_readiness,
-                    _like_escape, _date_is_valid)
+                    db_inventory_expiring, db_inventory_list,
+                    db_audit_log, db_open_partials, _date_is_valid)
 
 
 class PharmacyApp:
@@ -303,20 +304,11 @@ class PharmacyApp:
                  bg=PANEL, fg=TEXT, font=FONT_BODY, wraplength=340,
                  justify="left").pack(anchor="w", padx=10, pady=(0, 10))
 
-        # T7.1 — Expiration alerts. Reads Inventory for exp_date within
-        # the next 30 days (or already expired). ISO date strings sort
+        # T7.1 — Expiration alerts. Inventory rows expiring within the
+        # next 30 days (or already expired). ISO date strings sort
         # lexicographically, so SQLite string compare is correct here.
         today = datetime.now().strftime("%Y-%m-%d")
-        soon = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
-        conn = get_db_connection()
-        try:
-            expiring = conn.execute(
-                "SELECT drug_name, exp_date FROM Inventory "
-                "WHERE exp_date <= ? ORDER BY exp_date ASC, drug_name ASC",
-                (soon,)
-            ).fetchall()
-        finally:
-            conn.close()
+        expiring = db_inventory_expiring(within_days=30)
 
         ef = tk.Frame(host, bg=PANEL)
         ef.pack(fill="x", padx=16, pady=8)
@@ -328,14 +320,13 @@ class PharmacyApp:
                      bg=PANEL, fg=DIM, font=FONT_BODY).pack(
                          anchor="w", padx=10, pady=(0, 10))
         else:
-            for r in expiring:
-                is_expired = r["exp_date"] <= today
+            for drug_name, exp_date in expiring:
+                is_expired = exp_date <= today
                 color = RED if is_expired else ACCENT
                 tag = "EXPIRED" if is_expired else "expires"
                 tk.Label(
                     ef,
-                    text="%s  —  %s %s" % (
-                        r["drug_name"], tag, r["exp_date"]),
+                    text="%s  —  %s %s" % (drug_name, tag, exp_date),
                     bg=PANEL, fg=color, font=FONT_BODY,
                     anchor="w", wraplength=320, justify="left"
                 ).pack(anchor="w", padx=14, pady=2)
@@ -1018,41 +1009,24 @@ class PharmacyApp:
                       command=lambda: self._admin_inv_filter("")
                       ).pack(side="left", padx=(6, 0))
 
-        conn = get_db_connection()
-        try:
-            if self._inv_filter:
-                # A5 fix: escape % and _ so user-typed text doesn't
-                # get treated as SQL LIKE wildcards.
-                pat = "%" + _like_escape(self._inv_filter) + "%"
-                inv_rows = conn.execute(
-                    "SELECT drug_name, exp_date FROM Inventory "
-                    "WHERE drug_name LIKE ? ESCAPE '\\' "
-                    "ORDER BY exp_date, drug_name",
-                    (pat,)
-                ).fetchall()
-            else:
-                inv_rows = conn.execute(
-                    "SELECT drug_name, exp_date FROM Inventory "
-                    "ORDER BY exp_date, drug_name"
-                ).fetchall()
-        finally:
-            conn.close()
+        # A5 fix (LIKE-wildcard escaping) now lives in db_inventory_list.
+        inv_rows = db_inventory_list(self._inv_filter)
         if not inv_rows:
             empty_msg = ("(no matches)" if self._inv_filter
                          else "(no inventory)")
             tk.Label(inv, text=empty_msg, bg=PANEL, fg=DIM,
                      font=FONT_BODY).pack(anchor="w", padx=14, pady=2)
-        for r in inv_rows:
+        for drug_name, exp_date in inv_rows:
             row = tk.Frame(inv, bg=PANEL)
             row.pack(fill="x", padx=10, pady=2)
             tk.Label(row,
-                     text="%s — exp %s" % (r["drug_name"], r["exp_date"]),
+                     text="%s — exp %s" % (drug_name, exp_date),
                      bg=PANEL, fg=TEXT, font=FONT_BODY,
                      anchor="w").pack(side="left", fill="x", expand=True,
                                        padx=4)
             tk.Button(row, text="Remove", bg=RED, fg=BG,
                       font=FONT_BUTTON, bd=0,
-                      command=lambda d=r["drug_name"]:
+                      command=lambda d=drug_name:
                           self._admin_remove_inv(d)
                       ).pack(side="right", padx=4)
 
@@ -1107,34 +1081,16 @@ class PharmacyApp:
                       command=lambda: self._admin_audit_filter("")
                       ).pack(side="left", padx=(6, 0))
 
-        conn = get_db_connection()
-        try:
-            if self._audit_filter:
-                # A5 fix: escape % and _ so user-typed text is literal.
-                like = "%" + _like_escape(self._audit_filter) + "%"
-                entries = conn.execute(
-                    "SELECT timestamp, user, action FROM AuditLog "
-                    "WHERE user LIKE ? ESCAPE '\\' "
-                    "OR action LIKE ? ESCAPE '\\' "
-                    "ORDER BY id DESC LIMIT 50",
-                    (like, like)
-                ).fetchall()
-            else:
-                entries = conn.execute(
-                    "SELECT timestamp, user, action FROM AuditLog "
-                    "ORDER BY id DESC LIMIT 50"
-                ).fetchall()
-        finally:
-            conn.close()
+        # A5 fix (LIKE-wildcard escaping) now lives in db_audit_log.
+        entries = db_audit_log(self._audit_filter, limit=50)
         if not entries:
             empty_msg = ("(no matches)" if self._audit_filter
                          else "(empty)")
             tk.Label(log_f, text=empty_msg, bg=PANEL, fg=DIM,
                      font=FONT_BODY).pack(anchor="w", padx=14, pady=(2, 10))
-        for e in entries:
+        for timestamp, user, action in entries:
             tk.Label(log_f,
-                     text="%s  %s  —  %s" % (
-                         e["timestamp"], e["user"], e["action"]),
+                     text="%s  %s  —  %s" % (timestamp, user, action),
                      bg=PANEL, fg=TEXT, font=FONT_BODY, wraplength=340,
                      justify="left",
                      anchor="w").pack(anchor="w", padx=14, pady=1)
@@ -1434,33 +1390,26 @@ class PharmacyApp:
         list_card.pack(fill="x", padx=14, pady=8)
         tk.Label(list_card, text="Open Partials", bg=PANEL, fg=ACCENT,
                  font=FONT_BUTTON).pack(anchor="w", padx=10, pady=(8, 4))
-        conn = get_db_connection()
-        try:
-            rows = conn.execute(
-                "SELECT id, drug, qty_owed, patient, date "
-                "FROM PartialFills WHERE resolved=0 ORDER BY date DESC, id DESC"
-            ).fetchall()
-        finally:
-            conn.close()
+        rows = db_open_partials()
         if not rows:
             tk.Label(list_card,
                      text="All partials resolved. Inventory is clear.",
                      bg=PANEL, fg=DIM, font=FONT_BODY).pack(
                          anchor="w", padx=14, pady=(2, 10))
-        for r in rows:
+        for pid, drug, qty_owed, patient, date in rows:
             row = tk.Frame(list_card, bg=PANEL)
             row.pack(fill="x", padx=10, pady=4)
             tk.Label(
                 row,
                 text="%s  —  qty owed: %s\n%s  (%s)" % (
-                    r["drug"], r["qty_owed"], r["patient"], r["date"]),
+                    drug, qty_owed, patient, date),
                 bg=PANEL, fg=TEXT, font=FONT_BODY, justify="left",
                 anchor="w", wraplength=240).pack(
                     side="left", fill="x", expand=True, padx=4)
             tk.Button(row, text="Resolve", bg=GREEN, fg=BG,
                       font=FONT_BUTTON, bd=0,
-                      command=lambda pid=r["id"]:
-                          self._partial_resolve(pid)
+                      command=lambda rid=pid:
+                          self._partial_resolve(rid)
                       ).pack(side="right", padx=4)
 
         # ---- add new partial ----
