@@ -29,7 +29,9 @@ relying on any entry — tooling moves.
   installed line to `set_start_method('fork', force=True)` (fragile,
   lost on every reinstall).
 - **Re-check:** watch for a mutmut release later than 3.5.0 that adds
-  `force=True`; then the pin can be dropped.
+  `force=True`; then the pin can be dropped. Re-checked 2026-05-21 —
+  3.5.0 (2026-02-22) is still the latest release and `HISTORY.rst`
+  shows no `set_start_method` fix.
 
 ## Ephemeral build containers — uncommitted work is lost
 - **Verified:** 2026-05-20

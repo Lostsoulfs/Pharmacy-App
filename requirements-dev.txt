@@ -27,9 +27,10 @@ freezegun>=1.5             # freeze datetime.now() for deterministic tests
 nox>=2024.4                # runs the layered sessions (see noxfile.py)
 
 # --- Mutation testing -----------------------------------------------
-# NOTE: mutmut 3.5.0 is broken in many environments (multiprocessing
-# crash — see KNOWN_ISSUES.md). Pin below 3.5 until upstream ships a
-# fix.
+# NOTE: mutmut 3.5.0 has a latent set_start_method crash that bites
+# only when its __main__ is imported under a pre-set multiprocessing
+# context (see KNOWN_ISSUES.md). `mutmut run` itself is unaffected,
+# but the pin is kept conservative until upstream ships a fix.
 mutmut>=3.0,<3.5
 # cosmic-ray: a second mutation engine, used to cross-check mutmut
 # (KNOWN_ISSUES.md workaround #3). Uncomment if you need it.
