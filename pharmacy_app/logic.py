@@ -117,8 +117,9 @@ def calc_peds_dose(weight_kg, mg_per_kg_per_day, doses_per_day,
         raise ValueError("Weight must be 0 < weight <= 200 kg.")
     if mkd <= 0 or mkd > 1000:
         raise ValueError("mg/kg/day must be 0 < x <= 1000.")
-    if d <= 0 or d > 24:
-        raise ValueError("Doses/day must be 0 < n <= 24.")
+    if d <= 0 or d > 24 or not d.is_integer():
+        raise ValueError(
+            "Doses/day must be a whole number, 0 < n <= 24.")
     if conc <= 0 or conc > 1000:
         raise ValueError(
             "Concentration must be 0 < mg/mL <= 1000.")

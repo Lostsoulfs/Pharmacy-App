@@ -74,7 +74,7 @@ def test_insulin_never_raises_unexpected(daily, total, conc, priming):
        st.floats(min_value=0.01, max_value=1e6),
        st.floats(min_value=0.01, max_value=1e6))
 def test_insulin_nonpositive_daily_rejected(total, conc, priming):
-    result, ok = _value_error_only(calc_insulin_logic, 0, total, conc)
+    _, ok = _value_error_only(calc_insulin_logic, 0, total, conc)
     assert not ok                                # daily=0 must raise
 
 

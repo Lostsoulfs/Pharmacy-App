@@ -209,6 +209,19 @@ def db_verify_pin(name, pin):
         conn.close()
 
 
+def db_user_has_pin(name):
+    """True if the named user exists and has a PIN set. Lets the UI
+    decide whether to prompt for a PIN before login."""
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            "SELECT pin_hash FROM Users WHERE name=?", (name,)
+        ).fetchone()
+    finally:
+        conn.close()
+    return bool(row and row["pin_hash"])
+
+
 def db_list_users():
     """Return (admins, techs) name lists, admins first."""
     conn = get_db_connection()

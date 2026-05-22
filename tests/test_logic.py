@@ -33,8 +33,6 @@ def raises_valueerror(fn, *args, **kwargs):
         return False
     except ValueError:
         return True
-    except Exception:
-        return False
 
 
 def near(a, b, tol=1e-6):
@@ -119,6 +117,8 @@ def test_calc_peds_dose():
     mg, ml = calc_peds_dose(18, 90, 2, 50)
     assert near(mg, 810.0) and near(ml, 16.2)                    # L-PD-01
     assert raises_valueerror(calc_peds_dose, 0, 90, 2, 50)       # L-PD-02
+    # doses/day must be a whole number — a fractional count is rejected
+    assert raises_valueerror(calc_peds_dose, 18, 90, 2.5, 50)
     mg2, ml2 = calc_peds_dose(10, 40, 4, 25)
     assert near(mg2, 100.0) and near(ml2, 4.0)                   # L-PD-03
 

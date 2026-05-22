@@ -27,7 +27,8 @@ from .logic import (calc_insulin_logic, calc_days_supply_logic,
                     calc_peds_dose, answer_matches, is_strong_pin,
                     calculate_weight, sm2_update)
 from .data import (get_db_connection, init_db, db_log_audit, db_add_user,
-                    db_remove_user, db_verify_pin, db_list_users,
+                    db_remove_user, db_verify_pin, db_user_has_pin,
+                    db_list_users,
                     db_get_state, db_set_state, db_perf, db_record_score,
                     db_list_backups,
                     db_restore, db_open_partials_count,
@@ -181,6 +182,17 @@ class PharmacyApp:
             return
 
     def _tech_login(self, name):
+        # Technicians may carry an optional PIN (set via Add Tech).
+        # When one is set it must be entered — otherwise a
+        # PIN-protected tech account opens for anyone who taps it.
+        if db_user_has_pin(name):
+            pin = simpledialog.askstring(
+                "Technician", "Enter PIN:", show="*", parent=self.root)
+            if pin is None:
+                return
+            if not db_verify_pin(name, pin):
+                messagebox.showerror("Denied", "Invalid PIN.")
+                return
         self._enter(name, admin=False)
 
     def _enter(self, name, admin):

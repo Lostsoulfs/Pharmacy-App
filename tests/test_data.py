@@ -457,3 +457,11 @@ def test_db_open_partials(db):
     rows = db.db_open_partials()
     assert len(rows) == 1                       # resolved row excluded
     assert rows[0][1:] == ("Adderall", 30, "J. Doe", "2026-05-20")
+
+
+def test_db_user_has_pin(db):
+    db.db_add_user("Pinned", "tech", "9182")
+    db.db_add_user("NoPin", "tech")
+    assert db.db_user_has_pin("Pinned") is True
+    assert db.db_user_has_pin("NoPin") is False
+    assert db.db_user_has_pin("Ghost") is False   # nonexistent user
