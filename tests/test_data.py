@@ -324,6 +324,31 @@ def test_calculate_weight_single_miss_boundary(db):
         conn.close()
 
 
+def test_calculate_weight_handles_null_total(db):
+    # a malformed row with NULL total must fall back to base weight 10,
+    # not raise TypeError on the legacy missed = total - correct path
+    _raw_insert("INSERT INTO MasteryStats "
+                "(tech_name, drug_name, correct) VALUES (?, ?, ?)",
+                ("Alice", "Lipitor", 5))
+    conn = db.get_db_connection()
+    try:
+        assert calculate_weight("Alice", "Lipitor", conn) == 10
+    finally:
+        conn.close()
+
+
+def test_calculate_weight_handles_null_correct(db):
+    # a malformed row with NULL correct must also fall back to weight 10
+    _raw_insert("INSERT INTO MasteryStats "
+                "(tech_name, drug_name, total) VALUES (?, ?, ?)",
+                ("Alice", "Zoloft", 8))
+    conn = db.get_db_connection()
+    try:
+        assert calculate_weight("Alice", "Zoloft", conn) == 10
+    finally:
+        conn.close()
+
+
 # --- MasteryStats SRS columns + migration ---------------------------
 def _mastery_columns():
     conn = D.get_db_connection()

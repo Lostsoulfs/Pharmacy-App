@@ -14,4 +14,4 @@ Module layout:
 Entrypoint: main.py at the repo root.
 """
 
-__version__ = "0.2.0-modular"
+__version__ = "0.2.4"

@@ -383,7 +383,10 @@ def calculate_weight(tech_name, drug_name, conn):
         # logic, and a failure there is a real bug that must surface
         # rather than be masked as a base-weight result.
         return 10
-    if not stats or stats["total"] == 0:
+    # No row, no attempts, or a malformed NULL total/correct row ->
+    # base weight. The NULL guard keeps the legacy missed = total -
+    # correct line below from raising TypeError.
+    if not stats or not stats["total"] or stats["correct"] is None:
         return 10
     if stats["last_reviewed"]:
         try:

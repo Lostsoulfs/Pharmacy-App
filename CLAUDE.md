@@ -12,8 +12,8 @@ Pydroid 3 (Tkinter) and on desktop. Single user, offline, SQLite.
   DEA check, answer matching). Extensively unit-, property-, and
   mutation-tested.
 - `pharmacy_app/data.py` — SQLite layer; parametrized queries only.
-  Panels read through its helpers; a few inline writes still live in
-  `app.py` (audit finding M1).
+  Panels read and write through its helpers — all DB access lives
+  here (audit finding M1 resolved 2026-05-22).
 - `pharmacy_app/clinical_data.py` — static reference datasets.
 - `pharmacy_app/config.py` — constants and the `DATA_VERIFIED` map.
 - `pharmacy_app/theme.py` — colors and fonts.
