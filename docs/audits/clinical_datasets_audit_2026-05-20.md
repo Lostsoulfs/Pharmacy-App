@@ -19,7 +19,7 @@ changed adult pneumococcal and RSV age recommendations. This is not
 an authoritative reference; the pharmacist should spot-confirm before
 relying on it clinically.
 
-## RED_FLAGS (14 entries) — VERIFIED, no changes
+## RED_FLAGS (14 entries) — audited, no corrections
 
 Dispensing-safety scenarios. All 14 `rationale` claims are sound and
 match standard pharmacy practice: warfarin+NSAID bleeding risk,
@@ -30,7 +30,7 @@ teratogenicity / iPLEDGE, aspirin + pediatric viral illness / Reye's
 syndrome, and the controlled-substance diversion patterns. No
 corrections.
 
-## LASA_PAIRS (14 entries) — VERIFIED, no changes
+## LASA_PAIRS (14 entries) — audited, no corrections
 
 Look-alike/sound-alike drug pairs. All 14 pairs, answers, and
 distinguishing rationales are correct (consistent with ISMP
@@ -40,21 +40,21 @@ the Humalog/Humulin and Novolog/Novolin entries call Humulin/Novolin
 include short-acting (R) products. Acceptable for a name-confusion
 quiz. No corrections.
 
-## SIG_ABBREVIATIONS (27 entries) — VERIFIED, no changes
+## SIG_ABBREVIATIONS (27 entries) — audited, no corrections
 
 All 27 abbreviation→meaning mappings are correct. Note: some keys
 (QD, QDAY) appear on the ISMP error-prone abbreviation list — but
 this is a *decoder*, so carrying them with the correct meaning is
 appropriate. No corrections.
 
-## COMMON_RX_FLAGS (7 entries) — VERIFIED, no changes
+## COMMON_RX_FLAGS (7 entries) — audited, no corrections
 
 Drug-lookup overlay advisories for warfarin, methotrexate, insulin,
 levothyroxine, tramadol, alprazolam, amoxicillin. All seven flag
 texts are sound, conservative, pharmacist-review-oriented advisories.
 No corrections.
 
-## VACCINES (13 entries) — VERIFIED, 1 correction applied
+## VACCINES (13 entries) — audited, 1 correction applied
 
 Web-verified against the current CDC/ACIP schedule.
 

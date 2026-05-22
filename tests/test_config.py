@@ -62,7 +62,15 @@ def test_verified_on_returns_latest_date(monkeypatch):
 
 def test_verified_on_none_when_any_unverified(monkeypatch):
     monkeypatch.setitem(DATA_VERIFIED, "law", False)
+    monkeypatch.setitem(DATA_VERIFIED, "tpr", "2026-06-01")
     assert verified_on(["law", "tpr"]) is None
+
+
+def test_verified_on_unknown_or_empty():
+    # verified_on fails safe to None, mirroring is_unverified.
+    assert verified_on(["not_a_real_dataset"]) is None
+    assert verified_on([]) is None
+    assert verified_on(None) is None
 
 
 if __name__ == "__main__":

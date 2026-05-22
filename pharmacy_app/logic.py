@@ -369,7 +369,8 @@ def calculate_weight(tech_name, drug_name, conn):
       stats, no misses:    weight = 1 (mastered)
 
     Note: DB is caller's responsibility; connection passed in for
-    isolation. All errors swallow to base weight 10 (per v13)."""
+    isolation. A DB-access failure falls back to base weight 10;
+    errors in the weighting logic itself propagate (real bugs)."""
     try:
         stats = conn.execute(
             "SELECT correct, total, ease_factor, interval_days, "
@@ -377,22 +378,25 @@ def calculate_weight(tech_name, drug_name, conn):
             "WHERE tech_name=? AND drug_name=?",
             (tech_name, drug_name)
         ).fetchone()
-        if not stats or stats["total"] == 0:
-            return 10
-        if stats["last_reviewed"]:
-            try:
-                last = datetime.fromisoformat(stats["last_reviewed"])
-                days_since = (datetime.now() - last).days
-                interval = int(stats["interval_days"] or 0)
-                overdue = days_since - interval
-                if overdue >= 0:
-                    return min(50, 10 + overdue * 2)
-                return max(1, 10 + overdue)
-            except (ValueError, TypeError):
-                pass  # fall through to legacy path
-        missed = stats["total"] - stats["correct"]
-        if missed > 0:
-            return 10 + (missed * 5)
-        return 1
     except Exception:
+        # Swallow DB-access failures only — everything below is pure
+        # logic, and a failure there is a real bug that must surface
+        # rather than be masked as a base-weight result.
         return 10
+    if not stats or stats["total"] == 0:
+        return 10
+    if stats["last_reviewed"]:
+        try:
+            last = datetime.fromisoformat(stats["last_reviewed"])
+            days_since = (datetime.now() - last).days
+            interval = int(stats["interval_days"] or 0)
+            overdue = days_since - interval
+            if overdue >= 0:
+                return min(50, 10 + overdue * 2)
+            return max(1, 10 + overdue)
+        except (ValueError, TypeError):
+            pass  # fall through to legacy path
+    missed = stats["total"] - stats["correct"]
+    if missed > 0:
+        return 10 + (missed * 5)
+    return 1

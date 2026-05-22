@@ -68,6 +68,9 @@ class PharmacyApp:
 
     # ---- helpers ----
     def _clear(self):
+        # Drop the application-wide wheel handler the outgoing view
+        # may have bound (make_scrollable uses bind_all).
+        self.container.unbind_all("<MouseWheel>")
         for w in self.container.winfo_children():
             w.destroy()
 
@@ -90,6 +93,10 @@ class PharmacyApp:
         canvas.pack(side="left", fill="both", expand=True)
         sb.pack(side="right", fill="y")
         # Desktop wheel; on-device touch-drag is Scott's to verify.
+        # bind_all is application-wide, so drop any handler a previous
+        # panel left bound before adding this canvas's own — otherwise
+        # handlers stack and fire yview_scroll on destroyed canvases.
+        canvas.unbind_all("<MouseWheel>")
         canvas.bind_all(
             "<MouseWheel>",
             lambda e: canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"),
@@ -488,6 +495,9 @@ class PharmacyApp:
         + entry field + submit button. Binds Return to check_answer."""
         for widget in self.content_host.winfo_children():
             widget.destroy()
+        # The quiz question view is not scrollable; drop the wheel
+        # handler the previous panel bound via make_scrollable.
+        self.content_host.unbind_all("<MouseWheel>")
 
         main_f = tk.Frame(self.content_host, bg=BG)
         main_f.pack(fill="both", expand=True, padx=14, pady=12)
