@@ -36,7 +36,11 @@ from .data import (get_db_connection, init_db, db_log_audit, db_add_user,
                     db_export_audit_log, db_mastered_brands,
                     db_recent_scores, db_weak_spots, ptcb_readiness,
                     db_inventory_expiring, db_inventory_list,
-                    db_audit_log, db_open_partials, _date_is_valid)
+                    db_audit_log, db_open_partials,
+                    db_mark_mastered, db_get_mastery_stats,
+                    db_upsert_mastery_stats, db_add_inventory,
+                    db_remove_inventory, db_add_partial, db_resolve_partial,
+                    _date_is_valid)
 
 
 class PharmacyApp:
@@ -576,25 +580,14 @@ class PharmacyApp:
         else:
             is_correct = answer_matches(user_val, self.correct_ans)
 
-        # Track mastery stats (drug modes only)
+        # Track mastery stats (drug modes only). Persistence runs
+        # through data.py helpers; this stays orchestration-only.
         if not is_scenario:
             drug_name = self.current_drug["brand"]
-            conn = None
             try:
-                conn = get_db_connection()
-                cursor = conn.cursor()
                 if is_correct:
-                    cursor.execute(
-                        "INSERT OR IGNORE INTO PTCBMastery (tech_name, drug_name) VALUES (?, ?)",
-                        (self.user, drug_name)
-                    )
-                cursor.execute(
-                    "SELECT total, correct, ease_factor, interval_days, "
-                    "repetitions FROM MasteryStats "
-                    "WHERE tech_name=? AND drug_name=?",
-                    (self.user, drug_name)
-                )
-                row = cursor.fetchone()
+                    db_mark_mastered(self.user, drug_name)
+                row = db_get_mastery_stats(self.user, drug_name)
                 now_iso = datetime.now().isoformat(timespec="seconds")
                 if row:
                     ease, interval, reps = sm2_update(
@@ -602,32 +595,18 @@ class PharmacyApp:
                         row["repetitions"], is_correct)
                     new_total = row["total"] + 1
                     new_correct = row["correct"] + (1 if is_correct else 0)
-                    cursor.execute(
-                        "UPDATE MasteryStats SET total=?, correct=?, "
-                        "ease_factor=?, interval_days=?, repetitions=?, "
-                        "last_reviewed=? WHERE tech_name=? AND drug_name=?",
-                        (new_total, new_correct, ease, interval, reps,
-                         now_iso, self.user, drug_name)
-                    )
                 else:
                     ease, interval, reps = sm2_update(
                         None, None, None, is_correct)
-                    cursor.execute(
-                        "INSERT INTO MasteryStats (tech_name, drug_name, "
-                        "total, correct, ease_factor, interval_days, "
-                        "repetitions, last_reviewed) "
-                        "VALUES (?, ?, 1, ?, ?, ?, ?, ?)",
-                        (self.user, drug_name, 1 if is_correct else 0,
-                         ease, interval, reps, now_iso)
-                    )
-                conn.commit()
+                    new_total = 1
+                    new_correct = 1 if is_correct else 0
+                db_upsert_mastery_stats(
+                    self.user, drug_name, new_total, new_correct,
+                    ease, interval, reps, now_iso)
             except sqlite3.Error:
                 # Swallow DB errors only (mastery tracking is
                 # non-critical); a real bug now propagates instead.
                 pass
-            finally:
-                if conn:
-                    conn.close()
 
         # Feedback
         if is_correct:
@@ -1222,25 +1201,12 @@ class PharmacyApp:
                 "Expiration date must be YYYY-MM-DD "
                 "(zero-padded, e.g. 2027-03-15).")
             return
-        conn = get_db_connection()
-        try:
-            conn.execute(
-                "INSERT OR REPLACE INTO Inventory "
-                "(drug_name, exp_date) VALUES (?, ?)", (drug, exp))
-            conn.commit()
-        finally:
-            conn.close()
+        db_add_inventory(drug, exp)
         db_log_audit(self.user, "Inventory add: %s exp %s" % (drug, exp))
         self.navigate_to("admin")
 
     def _admin_remove_inv(self, drug):
-        conn = get_db_connection()
-        try:
-            conn.execute(
-                "DELETE FROM Inventory WHERE drug_name=?", (drug,))
-            conn.commit()
-        finally:
-            conn.close()
+        db_remove_inventory(drug)
         db_log_audit(self.user, "Inventory remove: %s" % drug)
         self.navigate_to("admin")
 
@@ -1495,29 +1461,13 @@ class PharmacyApp:
                 "Date must be YYYY-MM-DD (zero-padded, "
                 "e.g. 2026-05-21).")
             return
-        conn = get_db_connection()
-        try:
-            conn.execute(
-                "INSERT INTO PartialFills "
-                "(drug, qty_owed, patient, date) VALUES (?, ?, ?, ?)",
-                (drug, qty_int, patient, date))
-            conn.commit()
-        finally:
-            conn.close()
+        db_add_partial(drug, qty_int, patient, date)
         db_log_audit(self.user,
                      "Logged partial: %s for %s" % (drug, patient))
         self.navigate_to("partials")
 
     def _partial_resolve(self, pid):
-        conn = get_db_connection()
-        try:
-            cur = conn.execute(
-                "UPDATE PartialFills SET resolved=1 WHERE id=? "
-                "AND resolved=0", (pid,))
-            affected = cur.rowcount
-            conn.commit()
-        finally:
-            conn.close()
+        affected = db_resolve_partial(pid)
         # A6 fix: only audit-log when a row was actually changed.
         # Prevents misleading 'Resolved partial (ID:X)' entry when
         # the pid was already resolved or no longer exists.

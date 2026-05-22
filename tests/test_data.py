@@ -465,3 +465,50 @@ def test_db_user_has_pin(db):
     assert db.db_user_has_pin("Pinned") is True
     assert db.db_user_has_pin("NoPin") is False
     assert db.db_user_has_pin("Ghost") is False   # nonexistent user
+
+
+# --- panel write helpers (finding M1) -------------------------------
+def test_db_mark_mastered_idempotent(db):
+    db.db_mark_mastered("Alice", "Lipitor")
+    db.db_mark_mastered("Alice", "Lipitor")        # INSERT OR IGNORE
+    assert db.db_mastered_brands("Alice", ["Lipitor"]) == {"Lipitor"}
+
+
+def test_db_get_mastery_stats_none_when_absent(db):
+    assert db.db_get_mastery_stats("Alice", "Lipitor") is None
+
+
+def test_db_upsert_mastery_stats_insert_then_replace(db):
+    db.db_upsert_mastery_stats("Alice", "Lipitor", 1, 1, 2.5, 1,
+                               1, "2026-05-20T10:00:00")
+    row = db.db_get_mastery_stats("Alice", "Lipitor")
+    assert (row["total"], row["correct"]) == (1, 1)
+    # same (tech, drug) key -> replaced in place, not duplicated
+    db.db_upsert_mastery_stats("Alice", "Lipitor", 3, 2, 2.6, 6,
+                               2, "2026-05-21T10:00:00")
+    row = db.db_get_mastery_stats("Alice", "Lipitor")
+    assert (row["total"], row["correct"], row["repetitions"]) == (3, 2, 2)
+
+
+def test_db_add_and_remove_inventory(db):
+    db.db_add_inventory("Aspirin", "2027-01-01")
+    assert db.db_inventory_list() == [("Aspirin", "2027-01-01")]
+    db.db_add_inventory("Aspirin", "2028-06-30")   # OR REPLACE on PK
+    assert db.db_inventory_list() == [("Aspirin", "2028-06-30")]
+    db.db_remove_inventory("Aspirin")
+    assert db.db_inventory_list() == []
+
+
+def test_db_add_partial_appears_open(db):
+    db.db_add_partial("Adderall", 30, "J. Doe", "2026-05-20")
+    rows = db.db_open_partials()
+    assert len(rows) == 1
+    assert rows[0][1:] == ("Adderall", 30, "J. Doe", "2026-05-20")
+
+
+def test_db_resolve_partial_reports_change(db):
+    db.db_add_partial("Xanax", 10, "R. Roe", "2026-05-20")
+    pid = db.db_open_partials()[0][0]
+    assert db.db_resolve_partial(pid) is True      # first call changes a row
+    assert db.db_resolve_partial(pid) is False     # already resolved
+    assert db.db_open_partials() == []

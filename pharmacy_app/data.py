@@ -641,3 +641,116 @@ def db_open_partials():
         conn.close()
     return [(r["id"], r["drug"], r["qty_owed"], r["patient"], r["date"])
             for r in rows]
+
+
+# ---- panel-facing write helpers (extracted from app.py, finding M1) ----
+
+def db_mark_mastered(tech_name, drug_name):
+    """Record that a tech has mastered a drug. Idempotent — a repeat
+    call is a no-op via INSERT OR IGNORE on the composite key."""
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO PTCBMastery (tech_name, drug_name) "
+            "VALUES (?, ?)",
+            (tech_name, drug_name),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def db_get_mastery_stats(tech_name, drug_name):
+    """Return one tech+drug MasteryStats row as a plain dict (total,
+    correct, ease_factor, interval_days, repetitions), or None if the
+    card has never been seen. The caller feeds this into
+    logic.sm2_update to compute the next review schedule."""
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            "SELECT total, correct, ease_factor, interval_days, "
+            "repetitions FROM MasteryStats "
+            "WHERE tech_name=? AND drug_name=?",
+            (tech_name, drug_name),
+        ).fetchone()
+    finally:
+        conn.close()
+    return dict(row) if row else None
+
+
+def db_upsert_mastery_stats(tech_name, drug_name, total, correct,
+                            ease_factor, interval_days, repetitions,
+                            last_reviewed):
+    """Insert or replace a MasteryStats row. The caller computes the
+    running total/correct and the new SRS values (logic.sm2_update);
+    this helper persists the full row on the (tech, drug) key."""
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            "INSERT OR REPLACE INTO MasteryStats "
+            "(tech_name, drug_name, correct, total, ease_factor, "
+            "interval_days, last_reviewed, repetitions) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (tech_name, drug_name, correct, total, ease_factor,
+             interval_days, last_reviewed, repetitions),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def db_add_inventory(drug_name, exp_date):
+    """Add or replace an Inventory row. Caller validates exp_date as
+    strict zero-padded ISO YYYY-MM-DD before calling."""
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            "INSERT OR REPLACE INTO Inventory (drug_name, exp_date) "
+            "VALUES (?, ?)",
+            (drug_name, exp_date),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def db_remove_inventory(drug_name):
+    """Delete an Inventory row by drug name. No-op if absent."""
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            "DELETE FROM Inventory WHERE drug_name=?", (drug_name,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def db_add_partial(drug, qty_owed, patient, date):
+    """Append a partial-fill ledger row (resolved=0 by default).
+    Caller validates qty_owed (positive int) and date format first."""
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            "INSERT INTO PartialFills (drug, qty_owed, patient, date) "
+            "VALUES (?, ?, ?, ?)",
+            (drug, qty_owed, patient, date),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def db_resolve_partial(pid):
+    """Mark an open partial fill resolved. Returns True iff a row
+    actually changed — False if the id was already resolved or is no
+    longer on the ledger — so the caller can decide whether to
+    audit-log the action."""
+    conn = get_db_connection()
+    try:
+        cur = conn.execute(
+            "UPDATE PartialFills SET resolved=1 "
+            "WHERE id=? AND resolved=0", (pid,))
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
