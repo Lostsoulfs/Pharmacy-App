@@ -4,8 +4,9 @@
 - **Source lines:** 155–364 (210 entries)
 - **Audit date:** 2026-05-20
 - **Auditor:** Claude Code (automated cross-check)
-- **Status:** RESOLVED — web-verified and corrected 2026-05-20;
-  `DATA_VERIFIED["brand_generic"]` set True.
+- **Status:** PENDING pharmacist sign-off — automated audit complete
+  2026-05-20; per ADR-C05 `DATA_VERIFIED["brand_generic"]` stays
+  False until the pharmacist confirmation below is signed.
 
 ## Methodology
 
@@ -80,10 +81,11 @@ Consistency cleanups also applied: `Tetracycline` drug_class →
 as-is. Discontinued brands (Zantac, Coumadin) are carried
 intentionally for a training reference.
 
-`DATA_VERIFIED["brand_generic"]` set `True` in `config.py` — the Drug
-Lookup banner clears once `common_rx_flags` is also verified; the
-Training Center banner clears once `red_flags` and `lasa_pairs` are
-verified.
+`DATA_VERIFIED["brand_generic"]` stays `False` in `config.py` until a
+pharmacist signs the confirmation below. Once signed, set it to the
+sign-off date; the Drug Lookup banner then clears when
+`common_rx_flags` is also verified, and the Training Center banner
+when `red_flags` and `lasa_pairs` are verified.
 
 **Pharmacist confirmation** (final clinical sign-off): ____________
 Date: ____________

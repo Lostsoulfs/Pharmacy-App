@@ -5,8 +5,9 @@
   `brand_generic_audit_2026-05-20.md`).
 - **Audit date:** 2026-05-20
 - **Auditor:** Claude Code (automated cross-check + web verification)
-- **Status:** RESOLVED — verified and corrected 2026-05-20; the five
-  `DATA_VERIFIED` keys set True.
+- **Status:** PENDING pharmacist sign-off — automated audit complete
+  2026-05-20; per ADR-C05 the five `DATA_VERIFIED` keys stay False
+  until the pharmacist confirmation below is signed.
 
 ## Methodology
 
@@ -66,11 +67,12 @@ Web-verified against the current CDC/ACIP schedule.
 ## Outcome
 
 `DATA_VERIFIED` keys `red_flags`, `lasa_pairs`, `sig_abbreviations`,
-`common_rx_flags`, and `vaccines` set `True`. Combined with
-`brand_generic` (verified separately), the SIG Decoder, Vaccine
-Eligibility, Drug Lookup, and Training Center panels no longer show
-the UNVERIFIED banner. The `law` and `tpr` panels remain unverified —
-out of scope for this round.
+`common_rx_flags`, and `vaccines` stay `False` until a pharmacist
+signs the confirmation below. Once signed, set them to the sign-off
+date; the SIG Decoder, Vaccine Eligibility, Drug Lookup, and Training
+Center panels then stop showing the UNVERIFIED banner (Drug Lookup
+and Training Center also depend on `brand_generic`, audited
+separately). The `law` and `tpr` panels were out of scope this round.
 
 **Pharmacist confirmation** (final clinical sign-off): ____________
 Date: ____________

@@ -5,8 +5,10 @@
 - **Audit date:** 2026-05-20
 - **Auditor:** Claude Code, from pharmacist-commissioned deep-research
   documents.
-- **Status:** RESOLVED — built from verified research; `DATA_VERIFIED`
-  keys `law` and `tpr` set True.
+- **Status:** PENDING pharmacist sign-off — built from
+  pharmacist-commissioned research; per ADR-C05 `DATA_VERIFIED` keys
+  `law` and `tpr` stay False until the pharmacist confirmation below
+  is signed.
 
 ## Background
 
@@ -56,9 +58,10 @@ treats them identically (21/54 invalid NDC, 25/56 prescriber ID,
 ## Outcome
 
 `panel_law` and `panel_tpr` now render these datasets instead of the
-hardcoded v13 lists. `DATA_VERIFIED["law"]` and `["tpr"]` set `True` —
-all 8 verification domains are now verified and no panel shows the
-UNVERIFIED banner.
+hardcoded v13 lists. `DATA_VERIFIED["law"]` and `["tpr"]` stay
+`False` until a pharmacist signs the confirmation below; until then
+both panels show the UNVERIFIED banner. All 8 verification domains
+remain unverified pending pharmacist sign-off.
 
 State law and payer rules change. Re-verify `LAW_BULLETS` against the
 current MS Board regulations periodically (and after HB1675 takes

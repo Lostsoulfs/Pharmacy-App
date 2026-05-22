@@ -22,21 +22,23 @@ RESERVED_TECH_NAMES = {'admin', 'global', 'system', 'pharmacist'}
 # (ADR-002): expanduser("~") -> /data/user/0/ru.iiec.pydroid3/app_HOME
 DB_FILE = os.path.join(os.path.expanduser("~"), "pharmacy_master.db")
 
-# Per-dataset verification (replaces the ADR-C05 global flag). Each
-# value is the ISO date the dataset was verified, or False if it is
-# still unverified. The UI shows a red UNVERIFIED banner for any
-# dataset still False, and a dated confirmation for verified ones.
-# Setting a key to a date is a clinical assertion — only do it after
-# a documented audit under docs/audits/.
+# Per-dataset verification (ADR-C05). Each value is the ISO date a
+# pharmacist signed off the dataset, or False while it is still
+# unverified. The UI shows a red UNVERIFIED banner for any dataset
+# still False, and a dated confirmation once it is signed.
+# Per ADR-C05 a dataset stays UNVERIFIED until a pharmacist confirms
+# it — set a key to a date ONLY after the pharmacist signs the
+# matching audit under docs/audits/. The 2026-05-20 automated audits
+# are complete but await that sign-off, so all keys remain False.
 DATA_VERIFIED = {
-    "brand_generic":     "2026-05-20",
-    "red_flags":         "2026-05-20",
-    "lasa_pairs":        "2026-05-20",
-    "sig_abbreviations": "2026-05-20",
-    "common_rx_flags":   "2026-05-20",
-    "vaccines":          "2026-05-20",
-    "law":               "2026-05-20",
-    "tpr":               "2026-05-20",
+    "brand_generic":     False,
+    "red_flags":         False,
+    "lasa_pairs":        False,
+    "sig_abbreviations": False,
+    "common_rx_flags":   False,
+    "vaccines":          False,
+    "law":               False,
+    "tpr":               False,
 }
 
 

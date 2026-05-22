@@ -41,7 +41,9 @@ The app needs no third-party packages at runtime.
 
 ## Status
 
-Clinical and law datasets are pharmacist-verified per ADR-C05 (see
-`docs/audits/`). The Tkinter UI (`pharmacy_app/app.py`) has no
-automated test coverage — UI changes require an on-device check on
-Pydroid 3 or desktop.
+Clinical and law datasets are **UNVERIFIED** pending pharmacist
+sign-off (ADR-C05). The 2026-05-20 audits in `docs/audits/` are
+complete, but `config.DATA_VERIFIED` keeps every dataset flagged
+unverified until a pharmacist signs each audit. The Tkinter UI
+(`pharmacy_app/app.py`) has no automated test coverage — UI changes
+require an on-device check on Pydroid 3 or desktop.
