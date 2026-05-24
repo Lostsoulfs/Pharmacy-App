@@ -427,6 +427,47 @@ def test_calculate_weight_srs_overdue_outranks_due(db):
     assert overdue > not_due
 
 
+def test_calculate_weight_overdue_unsaturated(db):
+    # A small positive overdue keeps 10 + overdue*2 under the 50 cap,
+    # so the result pins the *2 multiplier and the +10 base that the
+    # cap-saturated SRS test above cannot distinguish. interval_days=0
+    # also exercises the `interval_days or 0` fallback.
+    from datetime import datetime, timedelta
+    six_days_ago = (datetime.now() - timedelta(days=6)).isoformat(
+        timespec="seconds")
+    _raw_insert(
+        "INSERT INTO MasteryStats (tech_name, drug_name, correct, total, "
+        "ease_factor, interval_days, last_reviewed, repetitions) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        ("Alice", "Crestor", 5, 5, 2.5, 0, six_days_ago, 1))
+    conn = db.get_db_connection()
+    try:
+        # overdue = 6 - 0 = 6  ->  min(50, 10 + 6*2) = 22
+        assert calculate_weight("Alice", "Crestor", conn) == 22
+    finally:
+        conn.close()
+
+
+def test_calculate_weight_not_due_uses_srs_branch(db):
+    # A not-yet-due card returns max(1, 10 + overdue). total == correct
+    # makes the legacy fallback return 1, so a result of 7 proves the
+    # SRS branch actually ran — and catches a broken max() that raises
+    # and silently falls through to that legacy path.
+    from datetime import datetime
+    just_now = datetime.now().isoformat(timespec="seconds")
+    _raw_insert(
+        "INSERT INTO MasteryStats (tech_name, drug_name, correct, total, "
+        "ease_factor, interval_days, last_reviewed, repetitions) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        ("Alice", "Nexium", 5, 5, 2.5, 3, just_now, 2))
+    conn = db.get_db_connection()
+    try:
+        # days_since 0, interval 3 -> overdue -3 -> max(1, 10-3) = 7
+        assert calculate_weight("Alice", "Nexium", conn) == 7
+    finally:
+        conn.close()
+
+
 # --- panel read helpers (finding M1) --------------------------------
 def test_db_inventory_expiring_window(db):
     _raw_insert("INSERT INTO Inventory VALUES (?, ?)",
