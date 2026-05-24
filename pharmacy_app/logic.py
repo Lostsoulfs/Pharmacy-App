@@ -57,7 +57,10 @@ def calc_insulin_logic(daily_units, total_ml, concentration,
     if max(daily, total, conc, priming) > 1e6:
         raise ValueError("Input out of plausible range.")
     effective_daily = daily + priming
-    days = int((total * conc) / effective_daily)
+    ratio = (total * conc) / effective_daily
+    if not math.isfinite(ratio):  # FUZZ-01: denormal divisor -> inf
+        raise ValueError("Input out of plausible range.")
+    days = int(ratio)
     if days > 3650:
         raise ValueError(
             "Result implausible (> 10 years). Check inputs.")
@@ -126,6 +129,8 @@ def calc_peds_dose(weight_kg, mg_per_kg_per_day, doses_per_day,
     total_mg = wt * mkd
     mg_per_dose = total_mg / d
     ml_per_dose = mg_per_dose / conc
+    if not all(math.isfinite(v) for v in (mg_per_dose, ml_per_dose)):
+        raise ValueError("Input out of plausible range.")  # FUZZ-01
     return round(mg_per_dose, 2), round(ml_per_dose, 2)
 
 
@@ -183,6 +188,8 @@ def calc_crcl_cockcroft_gault(age, weight_kg, serum_cr_mg_dl, is_female=False):
     crcl = ((140.0 - age_y) * wt) / (72.0 * scr)
     if is_female:
         crcl *= 0.85
+    if not math.isfinite(crcl):  # FUZZ-01: tiny SCr -> inf
+        raise ValueError("Input out of plausible range.")
     return round(crcl, 1)
 
 
@@ -235,7 +242,10 @@ def calc_days_supply_logic(quantity, units_per_day):
         raise ValueError("Invalid quantity or daily-use value.")
     if max(qty, daily) > 1e6:
         raise ValueError("Input out of plausible range.")
-    days = int(qty / daily)
+    ratio = qty / daily
+    if not math.isfinite(ratio):  # FUZZ-01: denormal divisor -> inf
+        raise ValueError("Input out of plausible range.")
+    days = int(ratio)
     if days > 3650:
         raise ValueError(
             "Result implausible (> 10 years). Check inputs.")

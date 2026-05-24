@@ -162,6 +162,21 @@ def test_sm2_update_handles_junk_input():
     assert (ease, interval, reps) == (2.6, 1, 1)
 
 
+# --- FUZZ-01: denormal divisor -> non-finite result rejected -------
+def test_calculators_reject_overflow_inputs():
+    # Hypothesis (seed 17 in the property sweep) found that absurdly
+    # tiny divisors slip past the existing > 0 input bound and the
+    # division overflows: days-supply / insulin raised uncaught
+    # OverflowError; peds-dose / CrCl silently returned `inf`. Pin
+    # the unified contract: a non-finite intermediate raises
+    # ValueError, like other bad input.
+    t = 2.225073858507e-311
+    assert raises_valueerror(calc_days_supply_logic, 1, t)
+    assert raises_valueerror(calc_insulin_logic, t, 1000, 1000)
+    assert raises_valueerror(calc_peds_dose, 18, 90, 2, t)
+    assert raises_valueerror(calc_crcl_cockcroft_gault, 40, 80, t)
+
+
 if __name__ == "__main__":
     import pytest
     sys.exit(pytest.main([__file__, "-q"]))
