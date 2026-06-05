@@ -1,0 +1,23 @@
+# Secrets / credential carriers — never commit
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.keystore
+id_rsa*
+credentials*
+*.tfvars
+
+# Personal / Drive tier — must never reach GitHub
+PERSONAL_JOURNAL*
+private/
+
+# Agent audit log + local overrides (local only)
+.claude/logs/
+.claude/settings.local.json
+
+# Python cruft (the scanner is Python)
+__pycache__/
+*.pyc
+.pytest_cache/
