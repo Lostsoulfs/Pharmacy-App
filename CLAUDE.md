@@ -1,14 +1,11 @@
-# CLAUDE.md
+# CLAUDE.md - Pharmacy-App
 
-Auto-loaded for Claude Code. **Read `AGENTS.md` first — the canonical contract**
-(boundaries, the agent-safety directive, working agreement). Read `SECURITY.md` for the
-GitHub-vs-Drive data wall, the sacred personal tier, and the incident runbook.
+Auto-loaded by Claude Code. Read AGENTS.md first; it is the canonical contract for this repo. This file only adds Claude-specific notes.
 
-Reminders:
-- Personal/identity data and secrets never go in this repo — they live in the private
-  Drive vault. `PERSONAL_JOURNAL*` and `private/` are off-limits without explicit
-  per-time say-so.
-- A pre-commit/CI gate blocks secrets and personal-tier paths. Activate per clone:
-  `git config core.hooksPath .githooks`.
-- Do the NEED, not the assumed WANT; never fabricate; disclose deviations; don't infer my
-  feelings in chat. Full rules in `AGENTS.md`.
+## Claude-specific notes
+
+- Follow AGENTS.md for commands, boundaries, git workflow, source-of-truth order, and the Working Agreement.
+- Read SECURITY.md before writes, deletes, installs, permission changes, credential work, or outbound messages.
+- For subagents, tell them to read AGENTS.md, SECURITY.md, and docs/LEARNINGS.md first, then report verified versus assumed facts.
+- Do not edit .claude/, hooks, settings, or agent permissions unless explicitly asked.
+- If push or a tool call is blocked, report the exact blocker and the next safe option. Do not claim persistence until the remote branch or commit is verified.
