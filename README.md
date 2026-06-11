@@ -1,5 +1,9 @@
 # Pharmacy-App
 
+> Training software only. Clinical and legal content is unverified and must not
+> be used for patient care or professional decisions. See
+> [Official Source Boundary](docs/OFFICIAL_SOURCES_2026.md).
+
 A pharmacy-technician PTCB-prep training app. Single-user, offline,
 SQLite-backed. Runs on Android via Pydroid 3 (Tkinter) and on the
 desktop.

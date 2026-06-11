@@ -104,7 +104,7 @@ def init_db():
         if cur.fetchone()[0] == 0:
             conn.execute(
                 "INSERT INTO Users (name, role, pin_hash) VALUES (?, ?, ?)",
-                ("Nathan", "admin", hash_pin("1234")),
+                ("DefaultAdmin", "admin", hash_pin("1234")),
             )
         conn.execute(
             "INSERT OR IGNORE INTO AppState (key, value) VALUES "
@@ -148,8 +148,8 @@ def db_add_user(name, role, pin=None):
     conn = get_db_connection()
     try:
         # A1 fix: reject if the name exists with a different role.
-        # Without this, db_add_user("Nathan", "tech") silently
-        # overwrites the existing admin Nathan via INSERT OR REPLACE.
+        # Without this, db_add_user("DefaultAdmin", "tech") silently
+        # overwrites the existing admin DefaultAdmin via INSERT OR REPLACE.
         existing = conn.execute(
             "SELECT role FROM Users WHERE name=?", (cleaned,)
         ).fetchone()
