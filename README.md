@@ -38,7 +38,8 @@ The app needs no third-party packages at runtime.
 
 ## Documentation
 
-- `CLAUDE.md` — architecture and conventions.
+- `AGENTS.md` — architecture, conventions, and the agent contract
+  (`CLAUDE.md` is only Claude-specific notes and points there).
 - `TESTING_PLAYBOOK.md` — the layered testing methodology.
 - `KNOWN_ISSUES.md` — tooling caveats.
 - `docs/audits/` — data and code audit reports.
