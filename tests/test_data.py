@@ -45,7 +45,7 @@ def _raw_insert(sql, params):
 # --- init_db --------------------------------------------------------
 def test_init_db_seeds_one_admin(db):
     admins, techs = db.db_list_users()
-    assert admins == ["Nathan"]
+    assert admins == ["DefaultAdmin"]
     assert techs == []
 
 
@@ -53,7 +53,7 @@ def test_init_db_is_idempotent(db):
     db.init_db()
     db.init_db()
     admins, _ = db.db_list_users()
-    assert admins == ["Nathan"]          # still exactly one admin
+    assert admins == ["DefaultAdmin"]          # still exactly one admin
 
 
 def test_init_db_seeds_default_shift_notes(db):
@@ -77,10 +77,10 @@ def test_add_user_rejects_reserved_name(db):
 
 
 def test_add_user_rejects_role_collision(db):
-    # A1 fix: cannot overwrite admin "Nathan" by re-adding as a tech.
-    assert db.db_add_user("Nathan", "tech", "1111") is False
+    # A1 fix: cannot overwrite admin "DefaultAdmin" by re-adding as a tech.
+    assert db.db_add_user("DefaultAdmin", "tech", "1111") is False
     admins, _ = db.db_list_users()
-    assert "Nathan" in admins                          # still admin
+    assert "DefaultAdmin" in admins                          # still admin
 
 
 # --- db_verify_pin --------------------------------------------------
@@ -91,7 +91,7 @@ def test_verify_pin_correct_and_wrong(db):
 
 
 def test_verify_pin_none_and_unknown_user(db):
-    assert db.db_verify_pin("Nathan", None) is False
+    assert db.db_verify_pin("DefaultAdmin", None) is False
     assert db.db_verify_pin("Ghost", "1234") is False
 
 
@@ -105,14 +105,14 @@ def test_remove_tech_succeeds(db):
 
 def test_remove_last_admin_refused(db):
     # A3 fix: removing the only admin must be refused.
-    assert db.db_remove_user("Nathan") is False
+    assert db.db_remove_user("DefaultAdmin") is False
     admins, _ = db.db_list_users()
-    assert "Nathan" in admins
+    assert "DefaultAdmin" in admins
 
 
 def test_remove_admin_allowed_when_another_exists(db):
     db.db_add_user("SecondAdmin", "admin", "7410")
-    assert db.db_remove_user("Nathan") is True
+    assert db.db_remove_user("DefaultAdmin") is True
 
 
 # --- db_get_state / db_set_state ------------------------------------
@@ -130,7 +130,7 @@ def test_state_overwrite(db):
 
 # --- db_log_audit (incl. pruning) -----------------------------------
 def test_audit_log_appends(db):
-    db.db_log_audit("Nathan", "Logged In")
+    db.db_log_audit("DefaultAdmin", "Logged In")
     conn = db.get_db_connection()
     try:
         n = conn.execute("SELECT COUNT(*) AS c FROM AuditLog").fetchone()["c"]
@@ -142,7 +142,7 @@ def test_audit_log_appends(db):
 def test_audit_log_prunes_to_max(db, monkeypatch):
     monkeypatch.setattr(D, "MAX_LOG_ENTRIES", 3)
     for i in range(6):
-        db.db_log_audit("Nathan", "action %d" % i)
+        db.db_log_audit("DefaultAdmin", "action %d" % i)
     conn = db.get_db_connection()
     try:
         rows = conn.execute(
@@ -272,7 +272,7 @@ def test_export_inventory_writes_file(db):
 
 
 def test_export_audit_log_writes_file(db):
-    db.db_log_audit("Nathan", "Exported")
+    db.db_log_audit("DefaultAdmin", "Exported")
     path = db.db_export_audit_log()
     assert os.path.exists(path)
     with open(path, encoding="utf-8") as fh:

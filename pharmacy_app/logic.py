@@ -19,7 +19,7 @@ def calc_insulin_logic(daily_units, total_ml, concentration,
                        priming_units_per_day=0):
     """EARS L-INS-01..04 (+ F-06 fix, 2026-05-19).
 
-    F-06 (domain expert, Nathan, pharmacist 2026-05-19): insulin pens
+    F-06 (domain expert review, 2026-05-19): insulin pens
     waste ~2 units per injection on priming. Original formula
     ignored this and over-estimated days supply.
 
@@ -325,7 +325,8 @@ def sm2_update(ease_factor, interval_days, repetitions, correct):
                 reps += 1; ease += 0.1
       Incorrect: interval = 0 (review again tomorrow); reps = 0;
                 ease -= 0.2
-      Ease is floored at 1.3 per classical SM-2."""
+      Ease is floored at 1.3 per classical SM-2. Review intervals are
+      capped at 36,500 days so corrupted or extreme state cannot overflow."""
     try:
         ease = float(ease_factor) if ease_factor is not None else 2.5
         interval = int(interval_days) if interval_days is not None else 0
@@ -333,7 +334,7 @@ def sm2_update(ease_factor, interval_days, repetitions, correct):
     except (ValueError, TypeError):
         ease, interval, reps = 2.5, 0, 0
     if not math.isfinite(ease):
-        ease = 2.5
+        ease, interval, reps = 2.5, 0, 0
     # ease/interval/reps are only ever written by this function or
     # NULL; enforce the invariants anyway (ease floored at the SM-2
     # 1.3 minimum, schedule non-negative) so a corrupt stored value
@@ -347,7 +348,7 @@ def sm2_update(ease_factor, interval_days, repetitions, correct):
         elif reps == 1:
             new_interval = 6
         else:
-            new_interval = int(round(interval * ease))
+            new_interval = min(36_500, int(round(interval * ease)))
         new_reps = reps + 1
         new_ease = ease + 0.1
     else:

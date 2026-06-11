@@ -139,4 +139,4 @@ surfaced (the mutmut 3.5.0 entry was already corrected 2026-05-21).
 - Code audit (sections 1-6, 8): Claude Code, 2026-05-21 — automated
   review, no code changed.
 - Clinical/law items (section 7): __________________________
-  (pharmacist, Nathan) — date: ____________
+  (qualified pharmacist) — date: ____________
