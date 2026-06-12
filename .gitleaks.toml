@@ -1,0 +1,19 @@
+[extend]
+useDefault = true
+
+# The scanner's own self-test assembles synthetic secrets from string fragments
+# (e.g. "AKIA" + "IOSFODNN7EXAMPLE") so they never form a real secret in source.
+# Scope the allowlist to that file AND those known fixture-token patterns
+# (condition = "AND") so a real secret added to this file is still detected.
+[[allowlists]]
+description = "Synthetic secret fixtures in the scanner self-test"
+condition = "AND"
+paths = ['''^tools/scan_staged\.py$''']
+regexes = [
+  '''IOSFODNN7EXAMPLE''',
+  '''PRIVATE KEY''',
+  '''xox[baprs]-''',
+  '''ghp_''',
+  '''AIza''',
+  '''AKIA''',
+]

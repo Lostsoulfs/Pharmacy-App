@@ -1,56 +1,20 @@
 # CLAUDE.md
 
-Pharmacy-technician PTCB-prep training app. Runs on Android via
-Pydroid 3 (Tkinter) and on desktop. Single user, offline, SQLite.
+The filename is historical. This is a universal instruction source for every human,
+agent, and automation system working in this repository. Read it together with
+`AGENTS.md` and `SECURITY.md`; all rules below apply regardless of the tool in use.
 
-## Architecture
+Pharmacy-technician PTCB-prep training app (Pydroid 3 / Tkinter / SQLite, offline,
+single user). **The architecture map, clinical-data rules (ADR-C05 / `DATA_VERIFIED`),
+conventions, testing layers, and boundaries all live in [`AGENTS.md`](AGENTS.md)** —
+they were moved there so no agent can miss them by skipping a Claude-named file.
+Read `SECURITY.md` before writes, deletes, installs, credential work, or outbound
+actions.
 
-- `main.py` — entry point.
-- `pharmacy_app/app.py` — Tkinter UI; every panel. Currently 0% test
-  coverage — the main remaining risk.
-- `pharmacy_app/logic.py` — pure functions (calculators, PIN hashing,
-  DEA check, answer matching). Extensively unit-, property-, and
-  mutation-tested.
-- `pharmacy_app/data.py` — SQLite layer; parametrized queries only.
-  Panels read and write through its helpers — all DB access lives
-  here (audit finding M1 resolved 2026-05-22).
-- `pharmacy_app/clinical_data.py` — static reference datasets.
-- `pharmacy_app/config.py` — constants and the `DATA_VERIFIED` map.
-- `pharmacy_app/theme.py` — colors and fonts.
+## Operational notes
 
-## Conventions and rules
-
-- Python 3.11 target (`ruff` `target-version = py311`). Keep syntax
-  compatible with whatever Pydroid 3 ships on the user's device.
-- `ruff check pharmacy_app` is the linter; 79-char lines. The repo
-  carries pre-existing lint debt — do not fix it wholesale; just do
-  not add new pyflakes (`F`) errors.
-- ADR-C01: there is no DB migration subsystem — additive
-  `ALTER TABLE` only.
-- ADR-C05 / `DATA_VERIFIED`: clinical and law data is UNVERIFIED
-  until a pharmacist confirms it. Each dataset has a key in
-  `config.DATA_VERIFIED`; panels render an UNVERIFIED banner via
-  `_unverified_banner(host, [domain_keys])` until every listed key
-  is `True`. Flipping a key is a clinical assertion — only do it
-  after a documented audit under `docs/audits/`.
-- Never invent clinical facts. Verify against authoritative sources
-  and cite them.
-
-## Testing
-
-- `pytest -q` runs the suite. Layers: example tests, Hypothesis
-  property tests, branch coverage, mutmut mutation testing — see
-  `TESTING_PLAYBOOK.md` for the order of effort.
-- `nox` runs lint + types + tests; `nox -s coverage` / `seedsweep` /
-  `mutation` for the full sweep.
-- "Done" = `pytest` green and no new ruff `F` errors. UI changes also
-  need an on-device check (Pydroid/desktop) — Tkinter cannot run in
-  CI or this container.
-- Known tooling bugs are recorded in `KNOWN_ISSUES.md` (e.g. the
-  mutmut 3.5.0 multiprocessing crash).
-
-## Environment
-
-- Cloud/CI containers are ephemeral — commit and push or the work is
-  lost.
-- GitHub (`lostsoulfs/pharmacy-app`) is the backup of record.
+- For subagents, tell them to read `AGENTS.md` and `SECURITY.md` first, then report
+  verified versus assumed facts.
+- Do not edit `.claude/`, hooks, settings, or agent permissions unless explicitly asked.
+- If push or a tool call is blocked, report the exact blocker and the next safe option.
+  Do not claim persistence until the remote branch or commit is verified.

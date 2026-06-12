@@ -7,10 +7,14 @@ pharmacy_master.db
 # test/quality artifacts
 .coverage
 .coverage.*
+.venv/
+.nox/
 .hypothesis/
 .pytest_cache/
 mutants/
 .mutmut-cache
 html/
+htmlcov/
+coverage.xml
 .mypy_cache/
 .ruff_cache/

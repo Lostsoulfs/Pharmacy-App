@@ -42,10 +42,15 @@ def tests(session):
 
 @nox.session
 def coverage(session):
-    """Layer 3: branch coverage with a term-missing report."""
+    """Layer 3: branch coverage with the configured baseline ratchet."""
     session.install("-r", "requirements-dev.txt")
     session.run(
-        "pytest", f"--cov={PACKAGE}", "--cov-report=term-missing")
+        "pytest",
+        f"--cov={PACKAGE}",
+        "--cov-report=term-missing",
+        "--cov-report=xml",
+        "--cov-report=html",
+    )
 
 
 @nox.session
@@ -54,6 +59,13 @@ def seedsweep(session):
     session.install("-r", "requirements-dev.txt")
     for seed in range(1, 51):
         session.run("pytest", f"--randomly-seed={seed}", "-q")
+
+
+@nox.session
+def contracts(session):
+    """Symbolically check the clinical calculation rules with CrossHair."""
+    session.install("-r", "requirements-dev.txt")
+    session.run("crosshair", "check", "tools/crosshair_contracts.py")
 
 
 @nox.session

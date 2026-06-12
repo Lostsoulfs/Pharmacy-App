@@ -10,6 +10,7 @@ branch = true
 source = ["pharmacy_app"]
 
 [tool.coverage.report]
+fail_under = 38
 show_missing = true
 skip_covered = true
 exclude_lines = [

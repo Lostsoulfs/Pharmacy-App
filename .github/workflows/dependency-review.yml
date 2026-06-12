@@ -2,10 +2,10 @@ name: Dependency Review
 
 on:
   pull_request:
-    paths:
-      - requirements-dev.txt
-      - pyproject.toml
-      - setup.cfg
+
+concurrency:
+  group: depreview-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -14,6 +14,7 @@ permissions:
 jobs:
   review:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
