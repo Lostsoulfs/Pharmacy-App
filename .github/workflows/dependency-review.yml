@@ -2,10 +2,6 @@ name: Dependency Review
 
 on:
   pull_request:
-    paths:
-      - requirements-dev.txt
-      - pyproject.toml
-      - setup.cfg
 
 concurrency:
   group: depreview-${{ github.workflow }}-${{ github.ref }}
