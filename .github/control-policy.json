@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "repository_kind": "python-clinical",
+  "visibility": "public",
+  "scanner_mode": "block",
+  "quality_baselines": {
+    "ruff_select": ["F"],
+    "ruff_format": "documented legacy debt; not yet a blocking gate",
+    "branch_coverage_percent": 38
+  },
+  "instruction_sources": [
+    "AGENTS.md",
+    "CLAUDE.md"
+  ],
+  "nested_instruction_files": [],
+  "required_files": [
+    "AGENTS.md",
+    "CLAUDE.md",
+    "SECURITY.md",
+    ".pre-commit-config.yaml",
+    ".githooks/pre-commit",
+    "tools/scan_staged.py",
+    "tools/control_audit.py",
+    ".github/control-policy.json",
+    ".github/workflows/controls.yml",
+    ".github/workflows/scan.yml",
+    ".github/dependabot.yml"
+  ],
+  "required_workflows": [
+    "repository-controls",
+    "secret-pii-scan",
+    "openssf-scorecard",
+    "main-artifacts",
+    "release"
+  ],
+  "exceptions": []
+}

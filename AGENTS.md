@@ -1,8 +1,8 @@
 # AGENTS.md — contributor & agent contract
 
-Canonical rules for humans and **any AI agent** in this repo — not just Claude
-(tool-specific files such as `CLAUDE.md` point back here). Read this first; see
-`SECURITY.md` for the data tiers, the sacred personal tier, and the incident runbook.
+Universal rules for every human, agent, and automation system in this repo. Read this
+together with `CLAUDE.md` and `SECURITY.md`; all three apply regardless of tool and
+preserve the data tiers, sacred personal tier, and incident runbook.
 
 **What this is:** a pharmacy-technician PTCB-prep training app. Runs on Android via
 Pydroid 3 (Tkinter) and on desktop. Single user, offline, SQLite.
@@ -92,7 +92,7 @@ When sources disagree, trust them in this order — and never silently pick a si
 the conflict:
 
 1. Live repo state, passing tests, and CI output.
-2. `AGENTS.md`, then `SECURITY.md`, then tool-specific files such as `CLAUDE.md`.
+2. `AGENTS.md`, `CLAUDE.md`, and `SECURITY.md` together; the most restrictive applicable rule wins.
 3. Repo docs — `README.md`, `STATUS.md`, `docs/adr/`, `docs/LEARNINGS.md`.
 4. External docs and web research, cited when used.
 5. Chat history and memory — candidate context only.

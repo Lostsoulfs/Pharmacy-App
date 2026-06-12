@@ -1,0 +1,64 @@
+name: main-artifacts
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: main-artifacts-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Validate and package
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install --disable-pip-version-check "nox==2026.4.10"
+      - run: nox -s lint types coverage
+      - run: python -m pip install --disable-pip-version-check "pip-audit==2.10.1"
+      - run: pip-audit -r requirements-dev.txt
+      - name: Package source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-artifacts
+          tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
+            --exclude=.git --exclude=.nox --exclude=.pytest_cache --exclude=.coverage \
+            -czf release-artifacts/pharmacy-app-source.tar.gz .
+      - name: Generate SPDX SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          path: .
+          format: spdx-json
+          output-file: release-artifacts/sbom.spdx.json
+          upload-artifact: false
+      - name: Generate checksums
+        run: sha256sum release-artifacts/* > release-artifacts/SHA256SUMS
+      - name: Submit SPDX dependencies
+        uses: advanced-security/spdx-dependency-submission-action@169d22427d74f3faf93504e70b03eede8dab272a # v0.2.0
+        with:
+          filePath: release-artifacts
+      - name: Upload retained build artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v6.0.0
+        with:
+          name: pharmacy-main-${{ github.sha }}
+          path: |
+            release-artifacts
+            coverage.xml
+            htmlcov
+          if-no-files-found: error
+          retention-days: 30
