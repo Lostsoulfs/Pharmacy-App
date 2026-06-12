@@ -16,11 +16,11 @@ def bsa_contract(height_cm: int, weight_kg: int) -> float:
     return calc_bsa_mosteller(height_cm, weight_kg)
 
 
-def crcl_contract(age: int, weight_kg: int, serum_creatinine: int) -> float:
+def crcl_contract(age: int, weight_kg: int, serum_creatinine: float) -> float:
     """
     pre: 1 <= age <= 130
     pre: 1 <= weight_kg <= 500
-    pre: 1 <= serum_creatinine <= 30
+    pre: 0.1 <= serum_creatinine <= 30.0
     post: _ >= 0.0
     """
     return calc_crcl_cockcroft_gault(age, weight_kg, serum_creatinine)
