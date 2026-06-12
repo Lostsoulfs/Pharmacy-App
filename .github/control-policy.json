@@ -10,7 +10,8 @@
   },
   "instruction_sources": [
     "AGENTS.md",
-    "CLAUDE.md"
+    "CLAUDE.md",
+    "SECURITY.md"
   ],
   "nested_instruction_files": [],
   "required_files": [
