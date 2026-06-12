@@ -83,7 +83,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -d '' scripts < <(find . -type f -name '*.sh' -not -path './.git/*' -not -path './node_modules/*' -print0)
+          mapfile -d '' scripts < <(find . -type f \( -name '*.sh' -o -path './.githooks/*' \) -not -path './.git/*' -not -path './node_modules/*' -print0)
           if (("${#scripts[@]}" > 0)); then
             ./shellcheck "${scripts[@]}"
             ./shfmt -d "${scripts[@]}"
