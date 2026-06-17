@@ -17,3 +17,15 @@ rules, tooling, source boundary, verification strategy, or known gotchas.
 - Tooling changed since the May research note: pytest 9.1.0, mypy 2.1, Ruff
   0.15.17, and mutmut 3.6.0 exist as of this recheck. Dependency changes are
   deferred until a toolchain PR can verify them on the intended OS path.
+
+## 2026-06-17 - CI control gate hardening
+
+- CI workflow tool installs should be pinned in the workflow, not left to the
+  latest package resolver. `tests.yml` now matches the artifact and release
+  workflows by installing `nox==2026.4.10`.
+- Write-scoped workflow permissions are allowed only when the control policy
+  records the workflow, job, permission, and reason. Top-level workflow
+  permissions stay read-only.
+- The secret/PII scan depends on a trusted scanner checkout from the base
+  branch. The control audit now checks for that checkout plus scanner self-test
+  and PR-diff scan commands.

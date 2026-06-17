@@ -17,7 +17,10 @@ except ImportError:
 ROOT = Path(__file__).resolve().parents[1]
 POLICY_PATH = ROOT / ".github" / "control-policy.json"
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
-ACTION = re.compile(r"^(?P<owner>[^/]+)/(?P<repo>[^/@]+)(?:/[^@]+)?@(?P<ref>.+)$")
+ACTION = re.compile(
+    r"^(?P<owner>[^/]+)/(?P<repo>[^/@]+)(?:/[^@]+)?@(?P<ref>.+)$"
+)
+PIP_INSTALL = re.compile(r"\b(?:python\s+-m\s+)?pip\s+install\b")
 
 
 def load_yaml(path: Path) -> dict:
@@ -43,6 +46,34 @@ def has_event(data: dict, event: str) -> bool:
     return False
 
 
+def permission_writes(value: object) -> set[str]:
+    if value is None:
+        return set()
+    if isinstance(value, str):
+        return {"*"} if value == "write-all" else set()
+    if not isinstance(value, dict):
+        return {"<invalid>"}
+    return {str(name) for name, level in value.items() if level == "write"}
+
+
+def read_only_permissions(value: object) -> bool:
+    if value == "read-all":
+        return True
+    if not isinstance(value, dict):
+        return False
+    for level in value.values():
+        if level not in {"read", "none"}:
+            return False
+    return True
+
+
+def run_installs_tool(run: str, tool: str) -> bool:
+    if not PIP_INSTALL.search(run):
+        return False
+    pattern = rf"(?<![\w.-]){re.escape(tool)}(?=[\s'\"<>=]|$)"
+    return re.search(pattern, run) is not None
+
+
 def main() -> int:
     policy = json.loads(POLICY_PATH.read_text(encoding="utf-8"))
     exceptions = {
@@ -51,6 +82,11 @@ def main() -> int:
     }
     failures: list[str] = []
     waived: list[str] = []
+    tool_pins = policy.get("workflow_tool_pins", {})
+    allowed_writes = {
+        (item["workflow"], item["job"], item["permission"])
+        for item in policy.get("allowed_job_write_permissions", [])
+    }
 
     def report(code: str, path: str, message: str) -> None:
         reason = exceptions.get((code, path)) or exceptions.get((code, "*"))
@@ -101,6 +137,12 @@ def main() -> int:
 
         if "permissions" not in data:
             report("workflow-permissions", rel, "top-level permissions are required")
+        elif not read_only_permissions(data["permissions"]):
+            report(
+                "workflow-permissions",
+                rel,
+                "top-level permissions must be read-only",
+            )
         concurrency = data.get("concurrency")
         if not isinstance(concurrency, dict):
             report("workflow-concurrency", rel, "concurrency must define group and cancellation")
@@ -123,10 +165,46 @@ def main() -> int:
             report("workflow-jobs", rel, "workflow must define jobs")
             continue
 
+        if name == "secret-pii-scan":
+            trusted_checkout = False
+            for job in jobs.values():
+                if not isinstance(job, dict):
+                    continue
+                for step in job.get("steps", []) or []:
+                    if not isinstance(step, dict):
+                        continue
+                    with_values = step.get("with", {}) or {}
+                    uses = step.get("uses")
+                    if (
+                        isinstance(uses, str)
+                        and uses.startswith("actions/checkout@")
+                        and with_values.get("path") == "scanner_dir"
+                        and with_values.get("ref") == "${{ github.base_ref }}"
+                        and with_values.get("persist-credentials") is False
+                    ):
+                        trusted_checkout = True
+            if not trusted_checkout:
+                report(
+                    "trusted-scanner",
+                    rel,
+                    "secret scan must check out scanner from base branch",
+                )
+            if "scanner_dir/tools/scan_staged.py --self-test" not in text:
+                report("trusted-scanner", rel, "trusted scanner self-test is required")
+            if "scanner_dir/tools/scan_staged.py --ci" not in text:
+                report("trusted-scanner", rel, "trusted scanner must scan the PR diff")
+
         for job_id, job in jobs.items():
             if not isinstance(job, dict):
                 report("workflow-job", rel, f"job {job_id} must be a mapping")
                 continue
+            for permission in permission_writes(job.get("permissions")):
+                if (str(name), str(job_id), permission) not in allowed_writes:
+                    report(
+                        "job-permission-write",
+                        rel,
+                        f"job {job_id} has undeclared write permission {permission}",
+                    )
             if "timeout-minutes" not in job:
                 report("job-timeout", rel, f"job {job_id} requires timeout-minutes")
             if "head.repo.full_name == github.repository" in str(job.get("if", "")):
@@ -135,15 +213,34 @@ def main() -> int:
                 if not isinstance(step, dict):
                     continue
                 uses = step.get("uses")
-                if not isinstance(uses, str):
-                    continue
-                match = ACTION.match(uses)
-                if match and not FULL_SHA.fullmatch(match.group("ref")):
-                    report("action-pin", rel, f"{uses} is not pinned to a full commit SHA")
-                if uses.startswith("actions/checkout@"):
-                    with_values = step.get("with", {}) or {}
-                    if with_values.get("persist-credentials") is not False:
-                        report("checkout-credentials", rel, "actions/checkout must set persist-credentials: false")
+                run = step.get("run")
+                if isinstance(run, str):
+                    for tool, version in tool_pins.items():
+                        if (
+                            run_installs_tool(run, tool)
+                            and f"{tool}=={version}" not in run
+                        ):
+                            report(
+                                "workflow-tool-pin",
+                                rel,
+                                f"{tool} installs must pin {tool}=={version}",
+                            )
+                if isinstance(uses, str):
+                    match = ACTION.match(uses)
+                    if match and not FULL_SHA.fullmatch(match.group("ref")):
+                        report(
+                            "action-pin",
+                            rel,
+                            f"{uses} is not pinned to a full commit SHA",
+                        )
+                    if uses.startswith("actions/checkout@"):
+                        with_values = step.get("with", {}) or {}
+                        if with_values.get("persist-credentials") is not False:
+                            report(
+                                "checkout-credentials",
+                                rel,
+                                "actions/checkout must set persist-credentials: false",
+                            )
 
     for required_workflow in policy["required_workflows"]:
         if required_workflow not in names:
