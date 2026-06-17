@@ -167,6 +167,66 @@ DATASET_SOURCE_REGISTRY: dict[str, dict[str, object]] = {
     },
 }
 
+COMMON_RX_FLAG_ITEM_REVIEWS: dict[str, dict[str, object]] = {
+    "warfarin": {
+        "review_status": UNVERIFIED,
+        "source_ids": ("SRC-FDA-DRUG-SAFETY", "SRC-PTCB-2026-PTCE"),
+        "item_reviewed_on": None,
+        "pharmacist_signoff": None,
+        "scope_note": "Warning text unchanged; needs qualified review.",
+    },
+    "methotrexate": {
+        "review_status": UNVERIFIED,
+        "source_ids": ("SRC-FDA-DRUG-SAFETY", "SRC-PTCB-2026-PTCE"),
+        "item_reviewed_on": None,
+        "pharmacist_signoff": None,
+        "scope_note": "Warning text unchanged; needs qualified review.",
+    },
+    "insulin": {
+        "review_status": UNVERIFIED,
+        "source_ids": ("SRC-FDA-DRUG-SAFETY", "SRC-PTCB-2026-PTCE"),
+        "item_reviewed_on": None,
+        "pharmacist_signoff": None,
+        "scope_note": "Warning text unchanged; needs qualified review.",
+    },
+    "levothyroxine": {
+        "review_status": UNVERIFIED,
+        "source_ids": ("SRC-FDA-DRUG-SAFETY", "SRC-PTCB-2026-PTCE"),
+        "item_reviewed_on": None,
+        "pharmacist_signoff": None,
+        "scope_note": "Warning text unchanged; needs qualified review.",
+    },
+    "tramadol": {
+        "review_status": UNVERIFIED,
+        "source_ids": (
+            "SRC-FDA-DRUG-SAFETY",
+            "SRC-DEA-PHARMACIST-MANUAL",
+            "SRC-PTCB-2026-PTCE",
+        ),
+        "item_reviewed_on": None,
+        "pharmacist_signoff": None,
+        "scope_note": "Warning text unchanged; needs qualified review.",
+    },
+    "alprazolam": {
+        "review_status": UNVERIFIED,
+        "source_ids": (
+            "SRC-FDA-DRUG-SAFETY",
+            "SRC-DEA-PHARMACIST-MANUAL",
+            "SRC-PTCB-2026-PTCE",
+        ),
+        "item_reviewed_on": None,
+        "pharmacist_signoff": None,
+        "scope_note": "Warning text unchanged; needs qualified review.",
+    },
+    "amoxicillin": {
+        "review_status": UNVERIFIED,
+        "source_ids": ("SRC-FDA-DRUG-SAFETY", "SRC-PTCB-2026-PTCE"),
+        "item_reviewed_on": None,
+        "pharmacist_signoff": None,
+        "scope_note": "Warning text unchanged; needs qualified review.",
+    },
+}
+
 
 def registry_entry(dataset_key: str) -> dict[str, object]:
     """Return metadata for a known dataset key."""
@@ -197,3 +257,17 @@ def dataset_item_count(dataset_key: str) -> int:
 def unverified_dataset_keys() -> tuple[str, ...]:
     """Return dataset keys whose visible app banner must remain active."""
     return tuple(key for key, value in DATA_VERIFIED.items() if not value)
+
+
+def common_rx_flag_item_review(drug_key: str) -> dict[str, object]:
+    """Return item-level common RX flag metadata, failing safe."""
+    return COMMON_RX_FLAG_ITEM_REVIEWS.get(
+        drug_key,
+        {
+            "review_status": UNVERIFIED,
+            "source_ids": (),
+            "item_reviewed_on": None,
+            "pharmacist_signoff": None,
+            "scope_note": "Unknown common RX flag item; treat as unverified.",
+        },
+    )

@@ -78,3 +78,9 @@ rules, tooling, source boundary, verification strategy, or known gotchas.
   where the filter is applied.
 - Export buttons should say when they ignore the current view filter so the
   user does not mistake a filtered preview for a filtered export.
+
+## 2026-06-17 - Common RX flag metadata
+
+- For content domains, item-level metadata can advance review readiness without
+  changing clinical facts. Keep row shape stable and mark each item unverified
+  until exact source evidence and pharmacist signoff exist.
