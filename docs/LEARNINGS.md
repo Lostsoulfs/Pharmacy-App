@@ -95,3 +95,9 @@ rules, tooling, source boundary, verification strategy, or known gotchas.
 - For quiz-list datasets, use the current question text as the item metadata
   key so wording additions or rewrites fail tests until review metadata is
   updated.
+
+## 2026-06-17 - Red-flag scenario metadata
+
+- Red-flag scenarios mix medication safety and controlled-substance concerns,
+  so metadata can route items to candidate sources without claiming the
+  bundled scenario, answer, or rationale is clinically or legally correct.
