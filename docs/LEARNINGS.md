@@ -89,3 +89,9 @@ rules, tooling, source boundary, verification strategy, or known gotchas.
 
 - For compact dictionary datasets, keep an explicit metadata key list so future
   data additions fail tests until review metadata is added.
+
+## 2026-06-17 - LASA pair metadata
+
+- For quiz-list datasets, use the current question text as the item metadata
+  key so wording additions or rewrites fail tests until review metadata is
+  updated.

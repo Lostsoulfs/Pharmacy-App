@@ -268,6 +268,34 @@ SIG_ABBREVIATION_ITEM_REVIEWS: dict[str, dict[str, object]] = {
     for key in SIG_ABBREVIATION_ITEM_KEYS
 }
 
+LASA_PAIR_ITEM_KEYS = (
+    "Look-Alike: Hydroxyzine vs Hydralazine. Which is for Itching?",
+    "Sound-Alike: Humalog vs Humulin. Which is rapid-acting?",
+    "Look-Alike: Zyrtec vs Zyprexa. Which is for allergies?",
+    "Look-Alike: Celebrex vs Celexa. Which treats arthritis pain?",
+    "Sound-Alike: Klonopin vs Clonidine. Which treats seizures and anxiety?",
+    "Look-Alike: Lamictal vs Lamisil. Which treats seizures?",
+    "Sound-Alike: Tramadol vs Trazodone. Which is a pain reliever?",
+    "Sound-Alike: Bupropion vs Buspirone. Which is used for smoking cessation?",
+    "Sound-Alike: Novolog vs Novolin. Which is rapid-acting?",
+    "Look-Alike: Lantus vs Latuda. Which is a long-acting insulin?",
+    "Look-Alike: Plavix vs Paxil. Which is a blood thinner?",
+    "Sound-Alike: Zantac vs Xanax. Which treats heartburn?",
+    "Look-Alike: Diflucan vs Diprivan. Which is an antifungal?",
+    "Sound-Alike: Cyclobenzaprine vs Cyproheptadine. Which is a muscle relaxant?",
+)
+
+LASA_PAIR_ITEM_REVIEWS: dict[str, dict[str, object]] = {
+    key: {
+        "review_status": UNVERIFIED,
+        "source_ids": ("SRC-PTCB-2026-PTCE", "SRC-PTCB-2026-KNOWLEDGE"),
+        "item_reviewed_on": None,
+        "pharmacist_signoff": None,
+        "scope_note": "Question and answer text unchanged; needs qualified review.",
+    }
+    for key in LASA_PAIR_ITEM_KEYS
+}
+
 
 def registry_entry(dataset_key: str) -> dict[str, object]:
     """Return metadata for a known dataset key."""
@@ -324,5 +352,19 @@ def sig_abbreviation_item_review(abbreviation: str) -> dict[str, object]:
             "item_reviewed_on": None,
             "pharmacist_signoff": None,
             "scope_note": "Unknown SIG abbreviation item; treat as unverified.",
+        },
+    )
+
+
+def lasa_pair_item_review(question: str) -> dict[str, object]:
+    """Return item-level LASA pair metadata, failing safe."""
+    return LASA_PAIR_ITEM_REVIEWS.get(
+        question,
+        {
+            "review_status": UNVERIFIED,
+            "source_ids": (),
+            "item_reviewed_on": None,
+            "pharmacist_signoff": None,
+            "scope_note": "Unknown LASA pair item; treat as unverified.",
         },
     )
