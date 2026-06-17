@@ -16,6 +16,7 @@ from pharmacy_app import clinical_data  # noqa: E402
 from pharmacy_app.source_registry import (  # noqa: E402
     COMMON_RX_FLAG_ITEM_REVIEWS,
     DATASET_SOURCE_REGISTRY,
+    LASA_PAIR_ITEM_REVIEWS,
     PHARMACIST_SIGNED,
     PTCE_DOMAINS,
     REVIEW_STATUSES,
@@ -25,6 +26,7 @@ from pharmacy_app.source_registry import (  # noqa: E402
     dataset_item_count,
     dataset_review_status,
     dataset_source_ids,
+    lasa_pair_item_review,
     sig_abbreviation_item_review,
     unverified_dataset_keys,
 )
@@ -127,6 +129,31 @@ def test_sig_abbreviation_item_metadata_matches_current_rows():
 
 def test_sig_abbreviation_item_review_fails_safe_for_unknown_key():
     entry = sig_abbreviation_item_review("UNKNOWN")
+
+    assert entry["review_status"] == UNVERIFIED
+    assert entry["source_ids"] == ()
+    assert entry["item_reviewed_on"] is None
+    assert entry["pharmacist_signoff"] is None
+
+
+def test_lasa_pair_item_metadata_matches_current_rows():
+    row_keys = [row["q"] for row in clinical_data.LASA_PAIRS]
+
+    assert len(row_keys) == len(set(row_keys))
+    assert set(LASA_PAIR_ITEM_REVIEWS) == set(row_keys)
+
+    for question in row_keys:
+        entry = LASA_PAIR_ITEM_REVIEWS[question]
+        assert entry["review_status"] == UNVERIFIED
+        assert entry["source_ids"]
+        assert entry["item_reviewed_on"] is None
+        assert entry["pharmacist_signoff"] is None
+        assert "unchanged" in entry["scope_note"].lower()
+        assert "review" in entry["scope_note"].lower()
+
+
+def test_lasa_pair_item_review_fails_safe_for_unknown_key():
+    entry = lasa_pair_item_review("unknown")
 
     assert entry["review_status"] == UNVERIFIED
     assert entry["source_ids"] == ()
