@@ -15,10 +15,18 @@ Extend `.github/control-policy.json` so the control audit requires:
 - `docs/DATA_SOURCE_REGISTER_2026.md`
 - `docs/LEARNINGS.md`
 - `docs/adr/README.md`
+- pinned workflow tool installs such as `nox`
+- declared exceptions for job-level write permissions
+- trusted scanner checkout and execution for PR secret/PII scans
 
 The audit remains structural. It checks that required governance files and
 workflow controls exist; it does not prove clinical safety, HIPAA compliance,
 de-identification, branch protection settings, or pharmacist review.
+
+The audit intentionally allows a small set of job-level write permissions for
+release, artifact, CodeQL, and Scorecard publishing. Each allowance must be
+declared in `.github/control-policy.json` with the exact workflow, job,
+permission, and reason.
 
 ## Consequences
 

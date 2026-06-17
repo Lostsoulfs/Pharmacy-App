@@ -43,5 +43,56 @@
     "main-artifacts",
     "release"
   ],
+  "workflow_tool_pins": {
+    "nox": "2026.4.10",
+    "pip-audit": "2.10.1",
+    "pre-commit": "4.6.0",
+    "PyYAML": "6.0.3",
+    "zizmor": "1.25.2"
+  },
+  "allowed_job_write_permissions": [
+    {
+      "workflow": "CodeQL",
+      "job": "analyze",
+      "permission": "security-events",
+      "reason": "CodeQL uploads SARIF results."
+    },
+    {
+      "workflow": "openssf-scorecard",
+      "job": "analysis",
+      "permission": "security-events",
+      "reason": "Scorecard uploads SARIF results."
+    },
+    {
+      "workflow": "openssf-scorecard",
+      "job": "analysis",
+      "permission": "id-token",
+      "reason": "Scorecard publishes signed results."
+    },
+    {
+      "workflow": "main-artifacts",
+      "job": "build",
+      "permission": "contents",
+      "reason": "Dependency submission requires repository write scope."
+    },
+    {
+      "workflow": "release",
+      "job": "release",
+      "permission": "contents",
+      "reason": "Release workflow creates or updates GitHub releases."
+    },
+    {
+      "workflow": "release",
+      "job": "release",
+      "permission": "id-token",
+      "reason": "Release workflow emits provenance attestations."
+    },
+    {
+      "workflow": "release",
+      "job": "release",
+      "permission": "attestations",
+      "reason": "Release workflow emits provenance attestations."
+    }
+  ],
   "exceptions": []
 }

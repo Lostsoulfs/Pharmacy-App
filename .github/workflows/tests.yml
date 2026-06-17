@@ -30,7 +30,7 @@ jobs:
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: "3.12"
-      - run: pip install nox
+      - run: python -m pip install --disable-pip-version-check "nox==2026.4.10"
       - run: nox -s lint types
 
   test:
@@ -50,7 +50,7 @@ jobs:
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install nox
+      - run: python -m pip install --disable-pip-version-check "nox==2026.4.10"
       - run: nox -s coverage
 
   seedsweep:
@@ -66,7 +66,7 @@ jobs:
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: "3.12"
-      - run: pip install nox
+      - run: python -m pip install --disable-pip-version-check "nox==2026.4.10"
       - run: nox -s seedsweep
 
   advanced:
