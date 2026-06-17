@@ -296,6 +296,38 @@ LASA_PAIR_ITEM_REVIEWS: dict[str, dict[str, object]] = {
     for key in LASA_PAIR_ITEM_KEYS
 }
 
+RED_FLAG_ITEM_KEYS = (
+    "Patient picking up Warfarin and Advil (Ibuprofen)?",
+    "C-II Codeine syrup from out-of-state dentist?",
+    "Cash price for 90-day supply of Oxycodone?",
+    "Methotrexate written for once-daily dosing?",
+    "Patient with a documented penicillin allergy handed Amoxicillin?",
+    "Patient on Sildenafil also picking up Nitroglycerin?",
+    "Controlled-substance scripts from several different prescribers in a short window?",
+    "SSRI antidepressant filled alongside Tramadol?",
+    "Adult-strength dose on a prescription for a small child?",
+    "Patient buying large or repeated quantities of pseudoephedrine?",
+    "ACE inhibitor (e.g. Lisinopril) with a potassium supplement?",
+    "Isotretinoin presented by a patient who may be pregnant?",
+    "Opioid prescription presented well before the previous fill should have run out?",
+    "Aspirin on a prescription for a child with a viral illness?",
+)
+
+RED_FLAG_ITEM_REVIEWS: dict[str, dict[str, object]] = {
+    key: {
+        "review_status": UNVERIFIED,
+        "source_ids": (
+            "SRC-PTCB-2026-PTCE",
+            "SRC-FDA-DRUG-SAFETY",
+            "SRC-DEA-PHARMACIST-MANUAL",
+        ),
+        "item_reviewed_on": None,
+        "pharmacist_signoff": None,
+        "scope_note": "Scenario, answer, and rationale text unchanged; needs qualified review.",
+    }
+    for key in RED_FLAG_ITEM_KEYS
+}
+
 
 def registry_entry(dataset_key: str) -> dict[str, object]:
     """Return metadata for a known dataset key."""
@@ -366,5 +398,19 @@ def lasa_pair_item_review(question: str) -> dict[str, object]:
             "item_reviewed_on": None,
             "pharmacist_signoff": None,
             "scope_note": "Unknown LASA pair item; treat as unverified.",
+        },
+    )
+
+
+def red_flag_item_review(question: str) -> dict[str, object]:
+    """Return item-level red-flag scenario metadata, failing safe."""
+    return RED_FLAG_ITEM_REVIEWS.get(
+        question,
+        {
+            "review_status": UNVERIFIED,
+            "source_ids": (),
+            "item_reviewed_on": None,
+            "pharmacist_signoff": None,
+            "scope_note": "Unknown red-flag scenario item; treat as unverified.",
         },
     )
