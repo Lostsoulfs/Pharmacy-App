@@ -231,5 +231,25 @@ def test_admin_filters_trim_and_reject_too_long(monkeypatch):
     assert errors and errors[-1][0] == "Audit Filter"
 
 
+def test_admin_filter_summary_lists_active_filters():
+    assert PharmacyApp._admin_filter_summary("", "") == ""
+    assert PharmacyApp._admin_filter_summary("Alice", "") == "Audit: Alice"
+    assert PharmacyApp._admin_filter_summary("", "Lipitor") == "Inventory: Lipitor"
+    assert PharmacyApp._admin_filter_summary(
+        "Alice", "Lipitor") == "Audit: Alice | Inventory: Lipitor"
+
+
+def test_admin_clear_filters_resets_both_filters():
+    shell = _shell()
+    shell._audit_filter = "Alice"
+    shell._inv_filter = "Lipitor"
+
+    PharmacyApp._admin_clear_filters(shell)
+
+    assert shell._audit_filter == ""
+    assert shell._inv_filter == ""
+    assert shell.nav == ["admin"]
+
+
 if __name__ == "__main__":
     sys.exit(__import__("pytest").main([__file__, "-q"]))

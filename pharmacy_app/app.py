@@ -203,6 +203,15 @@ class PharmacyApp:
         self._bind_scroll_events(canvas)
         return inner
 
+    @staticmethod
+    def _admin_filter_summary(audit_filter, inventory_filter):
+        parts = []
+        if audit_filter:
+            parts.append("Audit: %s" % audit_filter)
+        if inventory_filter:
+            parts.append("Inventory: %s" % inventory_filter)
+        return " | ".join(parts)
+
     # ---- auth ----
     def login_screen(self):
         self._clear()
@@ -988,6 +997,22 @@ class PharmacyApp:
                      font=FONT_BUTTON).pack(pady=20)
             return
 
+        filter_summary = self._admin_filter_summary(
+            self._audit_filter, self._inv_filter)
+        if filter_summary:
+            status = tk.Frame(host, bg=PANEL)
+            status.pack(fill="x", padx=14, pady=(0, 8))
+            tk.Label(status, text="Active Filters", bg=PANEL, fg=ACCENT,
+                     font=FONT_BUTTON).pack(anchor="w", padx=10,
+                                            pady=(8, 2))
+            tk.Label(status, text=filter_summary, bg=PANEL, fg=TEXT,
+                     font=FONT_BODY, wraplength=320, justify="left",
+                     anchor="w").pack(anchor="w", padx=10, pady=(0, 6))
+            tk.Button(status, text="Clear All Filters", bg=DIM, fg=BG,
+                      font=FONT_BUTTON, bd=0,
+                      command=self._admin_clear_filters
+                      ).pack(fill="x", padx=10, pady=(0, 10))
+
         # ---- Shift Notes Editor (T7.2) ----
         notes_card = tk.Frame(host, bg=PANEL)
         notes_card.pack(fill="x", padx=14, pady=8)
@@ -1111,6 +1136,11 @@ class PharmacyApp:
                       font=FONT_BUTTON, bd=0,
                       command=lambda: self._admin_inv_filter("")
                       ).pack(side="left", padx=(6, 0))
+        tk.Label(inv,
+                 text="Inventory filter matches drug names only.",
+                 bg=PANEL, fg=DIM, font=FONT_BODY,
+                 wraplength=320, justify="left").pack(
+                     anchor="w", padx=14, pady=(0, 6))
 
         # A5 fix (LIKE-wildcard escaping) now lives in db_inventory_list.
         inv_rows = db_inventory_list(self._inv_filter)
@@ -1183,6 +1213,12 @@ class PharmacyApp:
                       font=FONT_BUTTON, bd=0,
                       command=lambda: self._admin_audit_filter("")
                       ).pack(side="left", padx=(6, 0))
+        tk.Label(log_f,
+                 text=("Audit filter matches user names and action text. "
+                       "Export still writes the full audit log."),
+                 bg=PANEL, fg=DIM, font=FONT_BODY,
+                 wraplength=320, justify="left").pack(
+                     anchor="w", padx=14, pady=(0, 6))
 
         # A5 fix (LIKE-wildcard escaping) now lives in db_audit_log.
         entries = db_audit_log(self._audit_filter, limit=50)
@@ -1322,6 +1358,11 @@ class PharmacyApp:
             messagebox.showerror("Inventory Filter", result.error)
             return
         self._inv_filter = result.value
+        self.navigate_to("admin")
+
+    def _admin_clear_filters(self):
+        self._audit_filter = ""
+        self._inv_filter = ""
         self.navigate_to("admin")
 
     def _admin_export_inventory(self):
