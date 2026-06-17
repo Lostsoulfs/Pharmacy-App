@@ -71,3 +71,10 @@ rules, tooling, source boundary, verification strategy, or known gotchas.
   scrollable panel must also be removed when the view changes.
 - Keyboard scrolling should skip Entry/Text-style widgets so navigation keys
   keep their normal meaning while the user is typing.
+
+## 2026-06-17 - Admin filter status
+
+- Long admin pages need filter state near the top, not only inside the section
+  where the filter is applied.
+- Export buttons should say when they ignore the current view filter so the
+  user does not mistake a filtered preview for a filtered export.
