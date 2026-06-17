@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 import re
+from typing import Any
 
 MAX_FILTER_LEN = 80
 MAX_NAME_LEN = 80
@@ -26,7 +27,7 @@ SIG_TOKEN = re.compile(r"^[A-Z0-9./+-]+$")
 @dataclass(frozen=True)
 class ValidationResult:
     ok: bool
-    value: object = None
+    value: Any = None
     error: str = ""
 
 

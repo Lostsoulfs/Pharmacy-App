@@ -48,3 +48,11 @@ rules, tooling, source boundary, verification strategy, or known gotchas.
   be tested without desktop/Pydroid UI variability.
 - Keep first validation PR behavior-preserving by not wiring panels yet. UI
   wiring can then happen one panel at a time with focused smoke tests.
+
+## 2026-06-17 - First validation wiring
+
+- Wire non-visual handler methods through validators before broader layout
+  changes. Inventory, filters, and partial fills can be tested without a Tk
+  root by monkeypatching messagebox and DB calls.
+- Keep SIG and lookup callback tests at the pure-helper layer until a dedicated
+  UI smoke-test path exists for widget-level callbacks.

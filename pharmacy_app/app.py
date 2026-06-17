@@ -26,6 +26,9 @@ from .logic import (calc_insulin_logic, calc_days_supply_logic,
                     calc_crcl_cockcroft_gault, calc_bsa_mosteller,
                     calc_peds_dose, answer_matches, is_strong_pin,
                     calculate_weight, sm2_update)
+from .validation import (validate_filter_text, validate_inventory_entry,
+                         validate_lookup_query, validate_partial_fill,
+                         validate_sig_tokens)
 from .data import (get_db_connection, init_db, db_log_audit, db_add_user,
                     db_remove_user, db_verify_pin, db_user_has_pin,
                     db_list_users,
@@ -39,8 +42,7 @@ from .data import (get_db_connection, init_db, db_log_audit, db_add_user,
                     db_audit_log, db_open_partials,
                     db_mark_mastered, db_get_mastery_stats,
                     db_upsert_mastery_stats, db_add_inventory,
-                    db_remove_inventory, db_add_partial, db_resolve_partial,
-                    _date_is_valid)
+                    db_remove_inventory, db_add_partial, db_resolve_partial)
 
 
 class PharmacyApp:
@@ -1181,28 +1183,16 @@ class PharmacyApp:
         self.navigate_to("admin")
 
     def _admin_add_inv(self, drug, exp):
-        drug = (drug or "").strip()
-        exp = (exp or "").strip()
-        if not drug or not exp:
-            messagebox.showerror(
-                "Inventory", "Drug name and exp date required.")
+        result = validate_inventory_entry(drug, exp)
+        if not result.ok:
+            messagebox.showerror("Inventory", result.error)
             return
-        # A4 fix: validate exp_date as strict zero-padded ISO
-        # YYYY-MM-DD. Without strict validation '2026-5-19' would
-        # pass strptime but break ISO string compare in T7.1 query
-        # ('5' > '0' in ASCII -> miscategorized). Regex forces
-        # zero-padding; strptime then enforces leap-year / month-
-        # length / day-of-month correctness.
-        import re as _re
-        if (not _re.fullmatch(r"\d{4}-\d{2}-\d{2}", exp)
-                or not _date_is_valid(exp)):
-            messagebox.showerror(
-                "Inventory",
-                "Expiration date must be YYYY-MM-DD "
-                "(zero-padded, e.g. 2027-03-15).")
-            return
-        db_add_inventory(drug, exp)
-        db_log_audit(self.user, "Inventory add: %s exp %s" % (drug, exp))
+        payload = result.value
+        db_add_inventory(payload["drug"], payload["exp_date"])
+        db_log_audit(
+            self.user,
+            "Inventory add: %s exp %s" % (
+                payload["drug"], payload["exp_date"]))
         self.navigate_to("admin")
 
     def _admin_remove_inv(self, drug):
@@ -1223,13 +1213,21 @@ class PharmacyApp:
         # re-render. SQL LIKE % wildcards are added at query time, not
         # stored, so user-typed % is treated as literal-ish through the
         # parameterized binding. No filter audit-log entry (would spam).
-        self._audit_filter = (text or "").strip()
+        result = validate_filter_text(text, "Audit filter")
+        if not result.ok:
+            messagebox.showerror("Audit Filter", result.error)
+            return
+        self._audit_filter = result.value
         self.navigate_to("admin")
 
     def _admin_inv_filter(self, text):
         # T7.12 — inventory drug-name filter. Same pattern as audit
         # filter: state attribute + redraw.
-        self._inv_filter = (text or "").strip()
+        result = validate_filter_text(text, "Inventory filter")
+        if not result.ok:
+            messagebox.showerror("Inventory Filter", result.error)
+            return
+        self._inv_filter = result.value
         self.navigate_to("admin")
 
     def _admin_export_inventory(self):
@@ -1436,34 +1434,20 @@ class PharmacyApp:
                   ).pack(fill="x", padx=10, pady=(6, 10))
 
     def _partial_add(self, drug, qty, patient, date):
-        drug = (drug or "").strip()
-        patient = (patient or "").strip()
-        date = (date or "").strip()
-        try:
-            qty_int = int(str(qty).strip())
-            if qty_int <= 0:
-                raise ValueError
-        except (ValueError, TypeError):
-            messagebox.showerror(
-                "Partial", "Qty owed must be a positive integer.")
+        result = validate_partial_fill(drug, qty, patient, date)
+        if not result.ok:
+            messagebox.showerror("Partial", result.error)
             return
-        if not drug or not patient or not date:
-            messagebox.showerror(
-                "Partial", "Drug, patient, and date are required.")
-            return
-        # Mirror the A4 fix in _admin_add_inv: PartialFills.date is
-        # sorted lexicographically, so a non-ISO date sorts wrong.
-        import re as _re
-        if (not _re.fullmatch(r"\d{4}-\d{2}-\d{2}", date)
-                or not _date_is_valid(date)):
-            messagebox.showerror(
-                "Partial",
-                "Date must be YYYY-MM-DD (zero-padded, "
-                "e.g. 2026-05-21).")
-            return
-        db_add_partial(drug, qty_int, patient, date)
+        payload = result.value
+        db_add_partial(
+            payload["drug"],
+            payload["qty_owed"],
+            payload["patient"],
+            payload["date"],
+        )
         db_log_audit(self.user,
-                     "Logged partial: %s for %s" % (drug, patient))
+                     "Logged partial: %s for %s" % (
+                         payload["drug"], payload["patient"]))
         self.navigate_to("partials")
 
     def _partial_resolve(self, pid):
@@ -1539,17 +1523,19 @@ class PharmacyApp:
         res_box.pack(fill="x", padx=14, pady=4)
 
         def decode():
-            raw = entry.get().strip()
-            if not raw:
+            result = validate_sig_tokens(entry.get())
+            if not result.ok:
+                messagebox.showerror("SIG Decoder", result.error)
                 return
-            tokens = raw.upper().split()
+            tokens = result.value
             lines = []
             for tok in tokens:
                 meaning = SIG_ABBREVIATIONS.get(tok)
                 if meaning:
                     lines.append("%s  →  %s" % (tok, meaning))
                 else:
-                    lines.append("%s  →  (not in reference)" % tok)
+                    lines.append(
+                        "%s  →  not in reference; verify manually" % tok)
             res_box.config(state="normal")
             res_box.delete("1.0", "end")
             res_box.insert("end", "\n".join(lines))
@@ -1589,9 +1575,11 @@ class PharmacyApp:
         res_box.pack(fill="x", padx=14, pady=4)
 
         def search():
-            q = entry.get().strip().lower()
-            if not q:
+            result = validate_lookup_query(entry.get())
+            if not result.ok:
+                messagebox.showerror("Drug Lookup", result.error)
                 return
+            q = result.value.lower()
             hits = [
                 d for d in BRAND_GENERIC
                 if q in d["brand"].lower() or q in d["generic"].lower()
