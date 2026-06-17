@@ -28,10 +28,10 @@ relying on any entry — tooling moves.
   options: `mutatest` (pure-pytest, no source edits) or patching the
   installed line to `set_start_method('fork', force=True)` (fragile,
   lost on every reinstall).
-- **Re-check:** watch for a mutmut release later than 3.5.0 that adds
-  `force=True`; then the pin can be dropped. Re-checked 2026-05-21 —
-  3.5.0 (2026-02-22) is still the latest release and `HISTORY.rst`
-  shows no `set_start_method` fix.
+- **Re-check:** mutmut 3.6.0 was visible on PyPI on 2026-06-17, but
+  upstream still documents a fork-support requirement. Keep the current
+  `requirements-dev.txt` pin until a dedicated toolchain PR verifies the
+  intended Linux/WSL mutation path and updates this note with command output.
 
 ## Ephemeral build containers — uncommitted work is lost
 - **Verified:** 2026-05-20
