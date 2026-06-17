@@ -47,6 +47,25 @@ from .data import (get_db_connection, init_db, db_log_audit, db_add_user,
 
 
 class PharmacyApp:
+    SCROLL_EVENT_SEQUENCES = (
+        "<MouseWheel>",
+        "<Button-4>",
+        "<Button-5>",
+        "<Up>",
+        "<Down>",
+        "<Prior>",
+        "<Next>",
+        "<Home>",
+        "<End>",
+    )
+    SCROLL_INPUT_WIDGET_CLASSES = frozenset({
+        "Entry",
+        "Text",
+        "Spinbox",
+        "TEntry",
+        "TCombobox",
+    })
+
     def __init__(self, root):
         self.root = root
         self.user = None
@@ -75,11 +94,89 @@ class PharmacyApp:
 
     # ---- helpers ----
     def _clear(self):
-        # Drop the application-wide wheel handler the outgoing view
-        # may have bound (make_scrollable uses bind_all).
-        self.container.unbind_all("<MouseWheel>")
+        # Drop application-wide scroll handlers the outgoing view may
+        # have bound (make_scrollable uses bind_all).
+        self._unbind_scroll_events(self.container)
         for w in self.container.winfo_children():
             w.destroy()
+
+    def _unbind_scroll_events(self, widget):
+        for sequence in self.SCROLL_EVENT_SEQUENCES:
+            widget.unbind_all(sequence)
+
+    @staticmethod
+    def _scroll_units_from_wheel_event(event):
+        num = getattr(event, "num", None)
+        if num == 4:
+            return -1
+        if num == 5:
+            return 1
+
+        delta = getattr(event, "delta", 0)
+        if not delta:
+            return 0
+        units = int(-delta / 120)
+        if units == 0:
+            return -1 if delta > 0 else 1
+        return units
+
+    @classmethod
+    def _widget_wants_key_navigation(cls, widget):
+        if widget is None:
+            return False
+        try:
+            widget_class = widget.winfo_class()
+        except Exception:
+            return False
+        return widget_class in cls.SCROLL_INPUT_WIDGET_CLASSES
+
+    def _handle_scroll_wheel(self, canvas, event):
+        units = self._scroll_units_from_wheel_event(event)
+        if not units:
+            return None
+        canvas.yview_scroll(units, "units")
+        return "break"
+
+    def _handle_scroll_key(self, canvas, event):
+        if self._widget_wants_key_navigation(getattr(event, "widget", None)):
+            return None
+        key = getattr(event, "keysym", "")
+        if key == "Up":
+            canvas.yview_scroll(-1, "units")
+        elif key == "Down":
+            canvas.yview_scroll(1, "units")
+        elif key == "Prior":
+            canvas.yview_scroll(-1, "pages")
+        elif key == "Next":
+            canvas.yview_scroll(1, "pages")
+        elif key == "Home":
+            canvas.yview_moveto(0.0)
+        elif key == "End":
+            canvas.yview_moveto(1.0)
+        else:
+            return None
+        return "break"
+
+    def _bind_scroll_events(self, canvas):
+        self._unbind_scroll_events(canvas)
+        canvas.bind_all(
+            "<MouseWheel>",
+            lambda e: self._handle_scroll_wheel(canvas, e),
+        )
+        canvas.bind_all(
+            "<Button-4>",
+            lambda e: self._handle_scroll_wheel(canvas, e),
+        )
+        canvas.bind_all(
+            "<Button-5>",
+            lambda e: self._handle_scroll_wheel(canvas, e),
+        )
+        for sequence in ("<Up>", "<Down>", "<Prior>", "<Next>",
+                         "<Home>", "<End>"):
+            canvas.bind_all(
+                sequence,
+                lambda e, c=canvas: self._handle_scroll_key(c, e),
+            )
 
     def make_scrollable(self, parent):
         """Vertical scroll area; inner width synced to canvas so content
@@ -99,15 +196,11 @@ class PharmacyApp:
         canvas.configure(yscrollcommand=sb.set)
         canvas.pack(side="left", fill="both", expand=True)
         sb.pack(side="right", fill="y")
-        # Desktop wheel; on-device touch-drag is Scott's to verify.
+        # Desktop wheel/keyboard; on-device touch-drag is Scott's to verify.
         # bind_all is application-wide, so drop any handler a previous
         # panel left bound before adding this canvas's own — otherwise
         # handlers stack and fire yview_scroll on destroyed canvases.
-        canvas.unbind_all("<MouseWheel>")
-        canvas.bind_all(
-            "<MouseWheel>",
-            lambda e: canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"),
-        )
+        self._bind_scroll_events(canvas)
         return inner
 
     # ---- auth ----
@@ -504,7 +597,7 @@ class PharmacyApp:
             widget.destroy()
         # The quiz question view is not scrollable; drop the wheel
         # handler the previous panel bound via make_scrollable.
-        self.content_host.unbind_all("<MouseWheel>")
+        self._unbind_scroll_events(self.content_host)
 
         main_f = tk.Frame(self.content_host, bg=BG)
         main_f.pack(fill="both", expand=True, padx=14, pady=12)
