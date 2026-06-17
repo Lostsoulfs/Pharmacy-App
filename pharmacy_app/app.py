@@ -42,7 +42,8 @@ from .data import (get_db_connection, init_db, db_log_audit, db_add_user,
                     db_audit_log, db_open_partials,
                     db_mark_mastered, db_get_mastery_stats,
                     db_upsert_mastery_stats, db_add_inventory,
-                    db_remove_inventory, db_add_partial, db_resolve_partial)
+                    db_remove_inventory, db_add_partial, db_update_partial,
+                    db_resolve_partial)
 
 
 class PharmacyApp:
@@ -1398,16 +1399,27 @@ class PharmacyApp:
                 bg=PANEL, fg=TEXT, font=FONT_BODY, justify="left",
                 anchor="w", wraplength=240).pack(
                     side="left", fill="x", expand=True, padx=4)
-            tk.Button(row, text="Resolve", bg=GREEN, fg=BG,
+            actions = tk.Frame(row, bg=PANEL)
+            actions.pack(side="right", padx=4)
+            tk.Button(actions, text="Edit", bg=ACCENT, fg=BG,
+                      font=FONT_BUTTON, bd=0,
+                      command=lambda item=(
+                          pid, drug, qty_owed, patient, date):
+                          self._partial_prepare_edit(item)
+                      ).pack(fill="x", pady=(0, 3))
+            tk.Button(actions, text="Resolve", bg=GREEN, fg=BG,
                       font=FONT_BUTTON, bd=0,
                       command=lambda rid=pid:
                           self._partial_resolve(rid)
-                      ).pack(side="right", padx=4)
+                      ).pack(fill="x")
 
         # ---- add new partial ----
+        edit_row = getattr(self, "_partial_edit", None)
         add_card = tk.Frame(host, bg=PANEL)
         add_card.pack(fill="x", padx=14, pady=8)
-        tk.Label(add_card, text="Add Partial", bg=PANEL, fg=ACCENT,
+        tk.Label(add_card,
+                 text="Edit Partial" if edit_row else "Add Partial",
+                 bg=PANEL, fg=ACCENT,
                  font=FONT_BUTTON).pack(anchor="w", padx=10, pady=(8, 4))
 
         def fld(label):
@@ -1424,14 +1436,30 @@ class PharmacyApp:
         e_qty = fld("Qty owed")
         e_pat = fld("Patient")
         e_date = fld("Date")
-        e_date.insert(0, datetime.now().strftime("%Y-%m-%d"))
-
-        tk.Button(add_card, text="Add to Ledger", bg=ACCENT, fg=BG,
-                  font=FONT_BUTTON, bd=0,
-                  command=lambda: self._partial_add(
-                      e_drug.get(), e_qty.get(),
-                      e_pat.get(), e_date.get())
-                  ).pack(fill="x", padx=10, pady=(6, 10))
+        if edit_row:
+            _, edit_drug, edit_qty, edit_patient, edit_date = edit_row
+            e_drug.insert(0, edit_drug)
+            e_qty.insert(0, str(edit_qty))
+            e_pat.insert(0, edit_patient)
+            e_date.insert(0, edit_date)
+            tk.Button(add_card, text="Save Changes", bg=ACCENT, fg=BG,
+                      font=FONT_BUTTON, bd=0,
+                      command=lambda rid=edit_row[0]: self._partial_update(
+                          rid, e_drug.get(), e_qty.get(),
+                          e_pat.get(), e_date.get())
+                      ).pack(fill="x", padx=10, pady=(6, 4))
+            tk.Button(add_card, text="Cancel Edit", bg=BG, fg=TEXT,
+                      font=FONT_BUTTON, bd=0,
+                      command=self._partial_cancel_edit
+                      ).pack(fill="x", padx=10, pady=(0, 10))
+        else:
+            e_date.insert(0, datetime.now().strftime("%Y-%m-%d"))
+            tk.Button(add_card, text="Add to Ledger", bg=ACCENT, fg=BG,
+                      font=FONT_BUTTON, bd=0,
+                      command=lambda: self._partial_add(
+                          e_drug.get(), e_qty.get(),
+                          e_pat.get(), e_date.get())
+                      ).pack(fill="x", padx=10, pady=(6, 10))
 
     def _partial_add(self, drug, qty, patient, date):
         result = validate_partial_fill(drug, qty, patient, date)
@@ -1448,6 +1476,41 @@ class PharmacyApp:
         db_log_audit(self.user,
                      "Logged partial: %s for %s" % (
                          payload["drug"], payload["patient"]))
+        self.navigate_to("partials")
+
+    def _partial_prepare_edit(self, row):
+        self._partial_edit = row
+        self.navigate_to("partials")
+
+    def _partial_cancel_edit(self):
+        self._partial_edit = None
+        self.navigate_to("partials")
+
+    def _partial_update(self, pid, drug, qty, patient, date):
+        result = validate_partial_fill(drug, qty, patient, date)
+        if not result.ok:
+            messagebox.showerror("Partial", result.error)
+            return
+        payload = result.value
+        affected = db_update_partial(
+            pid,
+            payload["drug"],
+            payload["qty_owed"],
+            payload["patient"],
+            payload["date"],
+        )
+        if affected:
+            self._partial_edit = None
+            db_log_audit(
+                self.user,
+                "Edited partial (ID: %s): %s for %s" % (
+                    pid, payload["drug"], payload["patient"]),
+            )
+        else:
+            self._partial_edit = None
+            messagebox.showinfo(
+                "Partial",
+                "Already resolved or no longer in ledger.")
         self.navigate_to("partials")
 
     def _partial_resolve(self, pid):

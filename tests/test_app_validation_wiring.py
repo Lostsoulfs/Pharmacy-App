@@ -21,6 +21,7 @@ def _shell():
     shell.user = "DefaultAdmin"
     shell._audit_filter = ""
     shell._inv_filter = ""
+    shell._partial_edit = None
     shell.nav = []
     shell.navigate_to = lambda route: shell.nav.append(route)
     return shell
@@ -34,6 +35,16 @@ def _capture_errors(monkeypatch):
         lambda title, message: errors.append((title, message)),
     )
     return errors
+
+
+def _capture_info(monkeypatch):
+    messages = []
+    monkeypatch.setattr(
+        appmod.messagebox,
+        "showinfo",
+        lambda title, message: messages.append((title, message)),
+    )
+    return messages
 
 
 def test_admin_add_inventory_uses_clean_payload(monkeypatch):
@@ -122,6 +133,88 @@ def test_partial_add_rejects_bad_quantity(monkeypatch):
     assert partial_calls == []
     assert errors and errors[0][0] == "Partial"
     assert shell.nav == []
+
+
+def test_partial_prepare_and_cancel_edit_manage_state():
+    shell = _shell()
+    row = (7, "Adderall", 30, "J. Doe", "2026-05-20")
+
+    PharmacyApp._partial_prepare_edit(shell, row)
+
+    assert shell._partial_edit == row
+    assert shell.nav == ["partials"]
+
+    PharmacyApp._partial_cancel_edit(shell)
+
+    assert shell._partial_edit is None
+    assert shell.nav == ["partials", "partials"]
+
+
+def test_partial_update_uses_typed_payload(monkeypatch):
+    shell = _shell()
+    shell._partial_edit = (7, "Old", 1, "Old Patient", "2026-05-19")
+    errors = _capture_errors(monkeypatch)
+    update_calls = []
+    audit_calls = []
+    monkeypatch.setattr(
+        appmod,
+        "db_update_partial",
+        lambda pid, drug, qty, patient, date:
+            update_calls.append((pid, drug, qty, patient, date)) or True,
+    )
+    monkeypatch.setattr(
+        appmod,
+        "db_log_audit",
+        lambda user, action: audit_calls.append((user, action)),
+    )
+
+    PharmacyApp._partial_update(
+        shell, 7, "  Adderall  ", "30", " J. Doe ", "2026-05-20")
+
+    assert errors == []
+    assert update_calls == [(7, "Adderall", 30, "J. Doe", "2026-05-20")]
+    assert audit_calls == [
+        ("DefaultAdmin", "Edited partial (ID: 7): Adderall for J. Doe")
+    ]
+    assert shell._partial_edit is None
+    assert shell.nav == ["partials"]
+
+
+def test_partial_update_rejects_bad_payload(monkeypatch):
+    shell = _shell()
+    errors = _capture_errors(monkeypatch)
+    update_calls = []
+    monkeypatch.setattr(
+        appmod,
+        "db_update_partial",
+        lambda pid, drug, qty, patient, date:
+            update_calls.append((pid, drug, qty, patient, date)) or True,
+    )
+
+    PharmacyApp._partial_update(shell, 7, "Adderall", "0", "J. Doe", "2026-05-20")
+
+    assert update_calls == []
+    assert errors and errors[0][0] == "Partial"
+    assert shell.nav == []
+
+
+def test_partial_update_reports_stale_row(monkeypatch):
+    shell = _shell()
+    shell._partial_edit = (7, "Old", 1, "Old Patient", "2026-05-19")
+    _capture_errors(monkeypatch)
+    messages = _capture_info(monkeypatch)
+    monkeypatch.setattr(
+        appmod,
+        "db_update_partial",
+        lambda pid, drug, qty, patient, date: False,
+    )
+
+    PharmacyApp._partial_update(
+        shell, 7, "Adderall", "30", "J. Doe", "2026-05-20")
+
+    assert messages and messages[0][0] == "Partial"
+    assert shell._partial_edit is None
+    assert shell.nav == ["partials"]
 
 
 def test_admin_filters_trim_and_reject_too_long(monkeypatch):

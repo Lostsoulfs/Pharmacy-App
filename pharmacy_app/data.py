@@ -740,6 +740,26 @@ def db_add_partial(drug, qty_owed, patient, date):
         conn.close()
 
 
+def db_update_partial(pid, drug, qty_owed, patient, date):
+    """Update an open partial-fill row. Returns True iff a row changed.
+
+    Resolved rows are immutable through the UI edit path, so stale edit forms
+    cannot rewrite ledger history after another action resolves the row.
+    """
+    conn = get_db_connection()
+    try:
+        cur = conn.execute(
+            "UPDATE PartialFills "
+            "SET drug=?, qty_owed=?, patient=?, date=? "
+            "WHERE id=? AND resolved=0",
+            (drug, qty_owed, patient, date, pid),
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
 def db_resolve_partial(pid):
     """Mark an open partial fill resolved. Returns True iff a row
     actually changed — False if the id was already resolved or is no

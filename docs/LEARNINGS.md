@@ -56,3 +56,11 @@ rules, tooling, source boundary, verification strategy, or known gotchas.
   root by monkeypatching messagebox and DB calls.
 - Keep SIG and lookup callback tests at the pure-helper layer until a dedicated
   UI smoke-test path exists for widget-level callbacks.
+
+## 2026-06-17 - Partial-fill edit path
+
+- Update only unresolved partial-fill rows. If a save races with resolve/delete
+  state, clear edit mode and show the stale-row message instead of rewriting
+  ledger history.
+- Keep edit-path tests split across persistence helpers and Tk-free handler
+  methods. Full widget/touch smoke should stay in a later UI test PR.
