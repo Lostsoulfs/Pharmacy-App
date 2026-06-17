@@ -14,11 +14,13 @@ sys.path.insert(
 from pharmacy_app.config import DATA_VERIFIED  # noqa: E402
 from pharmacy_app import clinical_data  # noqa: E402
 from pharmacy_app.source_registry import (  # noqa: E402
+    COMMON_RX_FLAG_ITEM_REVIEWS,
     DATASET_SOURCE_REGISTRY,
     PHARMACIST_SIGNED,
     PTCE_DOMAINS,
     REVIEW_STATUSES,
     UNVERIFIED,
+    common_rx_flag_item_review,
     dataset_item_count,
     dataset_review_status,
     dataset_source_ids,
@@ -78,6 +80,31 @@ def test_unverified_dataset_keys_match_config():
     assert set(unverified_dataset_keys()) == {
         key for key, value in DATA_VERIFIED.items() if not value
     }
+
+
+def test_common_rx_flag_item_metadata_matches_current_rows():
+    row_keys = [drug for drug, _ in clinical_data.COMMON_RX_FLAGS]
+
+    assert len(row_keys) == len(set(row_keys))
+    assert set(COMMON_RX_FLAG_ITEM_REVIEWS) == set(row_keys)
+
+    for drug_key in row_keys:
+        entry = COMMON_RX_FLAG_ITEM_REVIEWS[drug_key]
+        assert entry["review_status"] == UNVERIFIED
+        assert entry["source_ids"]
+        assert entry["item_reviewed_on"] is None
+        assert entry["pharmacist_signoff"] is None
+        assert "unchanged" in entry["scope_note"].lower()
+        assert "review" in entry["scope_note"].lower()
+
+
+def test_common_rx_flag_item_review_fails_safe_for_unknown_key():
+    entry = common_rx_flag_item_review("unknown")
+
+    assert entry["review_status"] == UNVERIFIED
+    assert entry["source_ids"] == ()
+    assert entry["item_reviewed_on"] is None
+    assert entry["pharmacist_signoff"] is None
 
 
 if __name__ == "__main__":
