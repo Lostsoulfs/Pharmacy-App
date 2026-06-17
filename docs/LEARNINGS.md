@@ -64,3 +64,10 @@ rules, tooling, source boundary, verification strategy, or known gotchas.
   ledger history.
 - Keep edit-path tests split across persistence helpers and Tk-free handler
   methods. Full widget/touch smoke should stay in a later UI test PR.
+
+## 2026-06-17 - Scroll input hardening
+
+- Treat `bind_all` scroll handlers as global state. Every sequence added by a
+  scrollable panel must also be removed when the view changes.
+- Keyboard scrolling should skip Entry/Text-style widgets so navigation keys
+  keep their normal meaning while the user is typing.
