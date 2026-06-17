@@ -84,3 +84,8 @@ rules, tooling, source boundary, verification strategy, or known gotchas.
 - For content domains, item-level metadata can advance review readiness without
   changing clinical facts. Keep row shape stable and mark each item unverified
   until exact source evidence and pharmacist signoff exist.
+
+## 2026-06-17 - SIG abbreviation metadata
+
+- For compact dictionary datasets, keep an explicit metadata key list so future
+  data additions fail tests until review metadata is added.

@@ -227,6 +227,47 @@ COMMON_RX_FLAG_ITEM_REVIEWS: dict[str, dict[str, object]] = {
     },
 }
 
+SIG_ABBREVIATION_ITEM_KEYS = (
+    "QD",
+    "QDAY",
+    "BID",
+    "TID",
+    "QID",
+    "QHS",
+    "QAM",
+    "QPM",
+    "PRN",
+    "PO",
+    "SL",
+    "TOP",
+    "OU",
+    "OD",
+    "OS",
+    "AU",
+    "AD",
+    "AS",
+    "AC",
+    "PC",
+    "Q4H",
+    "Q6H",
+    "Q8H",
+    "Q12H",
+    "UD",
+    "AAA",
+    "NTE",
+)
+
+SIG_ABBREVIATION_ITEM_REVIEWS: dict[str, dict[str, object]] = {
+    key: {
+        "review_status": UNVERIFIED,
+        "source_ids": ("SRC-PTCB-2026-PTCE", "SRC-PTCB-2026-KNOWLEDGE"),
+        "item_reviewed_on": None,
+        "pharmacist_signoff": None,
+        "scope_note": "Meaning text unchanged; needs qualified review.",
+    }
+    for key in SIG_ABBREVIATION_ITEM_KEYS
+}
+
 
 def registry_entry(dataset_key: str) -> dict[str, object]:
     """Return metadata for a known dataset key."""
@@ -269,5 +310,19 @@ def common_rx_flag_item_review(drug_key: str) -> dict[str, object]:
             "item_reviewed_on": None,
             "pharmacist_signoff": None,
             "scope_note": "Unknown common RX flag item; treat as unverified.",
+        },
+    )
+
+
+def sig_abbreviation_item_review(abbreviation: str) -> dict[str, object]:
+    """Return item-level SIG abbreviation metadata, failing safe."""
+    return SIG_ABBREVIATION_ITEM_REVIEWS.get(
+        abbreviation,
+        {
+            "review_status": UNVERIFIED,
+            "source_ids": (),
+            "item_reviewed_on": None,
+            "pharmacist_signoff": None,
+            "scope_note": "Unknown SIG abbreviation item; treat as unverified.",
         },
     )

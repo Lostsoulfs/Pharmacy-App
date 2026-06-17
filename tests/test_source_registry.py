@@ -19,11 +19,13 @@ from pharmacy_app.source_registry import (  # noqa: E402
     PHARMACIST_SIGNED,
     PTCE_DOMAINS,
     REVIEW_STATUSES,
+    SIG_ABBREVIATION_ITEM_REVIEWS,
     UNVERIFIED,
     common_rx_flag_item_review,
     dataset_item_count,
     dataset_review_status,
     dataset_source_ids,
+    sig_abbreviation_item_review,
     unverified_dataset_keys,
 )
 
@@ -100,6 +102,31 @@ def test_common_rx_flag_item_metadata_matches_current_rows():
 
 def test_common_rx_flag_item_review_fails_safe_for_unknown_key():
     entry = common_rx_flag_item_review("unknown")
+
+    assert entry["review_status"] == UNVERIFIED
+    assert entry["source_ids"] == ()
+    assert entry["item_reviewed_on"] is None
+    assert entry["pharmacist_signoff"] is None
+
+
+def test_sig_abbreviation_item_metadata_matches_current_rows():
+    row_keys = list(clinical_data.SIG_ABBREVIATIONS)
+
+    assert len(row_keys) == len(set(row_keys))
+    assert set(SIG_ABBREVIATION_ITEM_REVIEWS) == set(row_keys)
+
+    for abbreviation in row_keys:
+        entry = SIG_ABBREVIATION_ITEM_REVIEWS[abbreviation]
+        assert entry["review_status"] == UNVERIFIED
+        assert entry["source_ids"]
+        assert entry["item_reviewed_on"] is None
+        assert entry["pharmacist_signoff"] is None
+        assert "unchanged" in entry["scope_note"].lower()
+        assert "review" in entry["scope_note"].lower()
+
+
+def test_sig_abbreviation_item_review_fails_safe_for_unknown_key():
+    entry = sig_abbreviation_item_review("UNKNOWN")
 
     assert entry["review_status"] == UNVERIFIED
     assert entry["source_ids"] == ()
