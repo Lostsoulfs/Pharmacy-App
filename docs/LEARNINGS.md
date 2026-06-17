@@ -29,3 +29,14 @@ rules, tooling, source boundary, verification strategy, or known gotchas.
 - The secret/PII scan depends on a trusted scanner checkout from the base
   branch. The control audit now checks for that checkout plus scanner self-test
   and PR-diff scan commands.
+
+## 2026-06-17 - Dataset source metadata
+
+- Source metadata is now a companion registry, not extra fields on the runtime
+  rows. This preserves the existing Tkinter/data call sites while giving future
+  content PRs a stable place to record source IDs and PTCE domains.
+- Registry entries are dataset-level routing metadata only. They do not
+  validate item facts and do not affect the UNVERIFIED banners.
+- Comments in `clinical_data.py` should say "automated audit recorded" when
+  pharmacist signoff is still pending. Avoid "verified" wording unless
+  `DATA_VERIFIED` has a signed date.

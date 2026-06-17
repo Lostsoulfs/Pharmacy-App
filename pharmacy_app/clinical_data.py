@@ -146,9 +146,9 @@ COMMON_RX_FLAGS = [
 ]
 
 # BRAND_GENERIC — the PTCB "Top 200" drug set (210 entries).
-# VERIFIED 2026-05-20: brand/generic pairs cross-checked against
-# FDA/DailyMed-class references; see
-# docs/audits/brand_generic_audit_2026-05-20.md. brand fields list
+# Automated audit recorded 2026-05-20, but pharmacist signoff is still
+# pending; see docs/audits/brand_generic_audit_2026-05-20.md.
+# `config.DATA_VERIFIED["brand_generic"]` stays False. brand fields list
 # common trade names (slash-separated where several apply);
 # drug_class is a coarse therapeutic category for display only, not a
 # clinical reference.
@@ -367,12 +367,12 @@ BRAND_GENERIC = [
 
 # VACCINES — pharmacy-administered immunization quick-reference.
 #
-# VERIFIED 2026-05-20 against the current CDC/ACIP immunization
-# schedule (cdc.gov/vaccines/schedules); see
-# docs/audits/clinical_datasets_audit_2026-05-20.md. Schedules change
-# annually — re-verify each season. Pharmacist scope of practice
-# varies by state and patient age: what a pharmacist may administer,
-# and to whom, is set by state law and is NOT captured here.
+# Automated audit recorded 2026-05-20, but pharmacist signoff is still
+# pending; see docs/audits/clinical_datasets_audit_2026-05-20.md.
+# `config.DATA_VERIFIED["vaccines"]` stays False. Schedules change
+# annually - re-verify each season. Pharmacist scope of practice varies
+# by state and patient age: what a pharmacist may administer, and to
+# whom, is set by state law and is NOT captured here.
 VACCINES = [
     {"vaccine": "Influenza (inactivated, IIV)",
      "ages": "6 months and older",
@@ -457,11 +457,12 @@ VACCINES = [
 # LAW_BULLETS — Mississippi pharmacy law quick-reference for
 # technicians.
 #
-# VERIFIED 2026-05-20 against the Mississippi Board of Pharmacy
-# regulations (Miss. Admin. Code Title 30, Part 3001) and the
-# Mississippi Code (MS Code Ann. Title 73 ch. 21 / Title 41 ch. 29);
-# see docs/audits/law_tpr_audit_2026-05-20.md. State law moves —
-# re-verify against the current Board regulations periodically.
+# Automated audit recorded 2026-05-20, but pharmacist signoff is still
+# pending; see docs/audits/law_tpr_audit_2026-05-20.md.
+# `config.DATA_VERIFIED["law"]` stays False. These bullets are a
+# Mississippi-specific training reference. State law moves - re-verify
+# against the current Board regulations before any content correction or
+# state-track claim.
 LAW_BULLETS = [
     {"category": "Technician Registration & Scope",
      "rule": "Every pharmacy technician in Mississippi must register "
@@ -590,9 +591,9 @@ LAW_BULLETS = [
 
 # TPR_CODES — third-party (insurance) claim rejection quick-reference.
 #
-# VERIFIED 2026-05-20 against NCPDP Telecommunication Standard reject
-# codes and PBM payer documentation; see
-# docs/audits/law_tpr_audit_2026-05-20.md. Codes a technician resolves
+# Automated audit recorded 2026-05-20, but pharmacist signoff is still
+# pending; see docs/audits/law_tpr_audit_2026-05-20.md.
+# `config.DATA_VERIFIED["tpr"]` stays False. Codes a technician resolves
 # directly unless the action notes a pharmacist.
 TPR_CODES = [
     {"code": "01 — Missing/Invalid BIN",

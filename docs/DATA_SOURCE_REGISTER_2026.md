@@ -7,6 +7,11 @@ source families and PTCE domains. It is review-routing metadata only. It does
 not validate the bundled data, does not change app behavior, and does not allow
 any `DATA_VERIFIED` key to be flipped.
 
+Machine-readable companion metadata lives in
+`pharmacy_app/source_registry.py`. That registry mirrors this document at the
+dataset level only; it is not item-level verification and cannot clear any
+UNVERIFIED banner.
+
 ## Dataset Domains
 
 | Dataset key | Current status | App area | Candidate source IDs | PTCE domain mapping | Next review action |
@@ -27,6 +32,16 @@ any `DATA_VERIFIED` key to be flipped.
   pharmacist signoff yet.
 - `PHARMACIST_SIGNED`: a qualified pharmacist signed the dated audit artifact.
   Only this state can support a `DATA_VERIFIED` date change.
+
+## Code Registry Requirements
+
+- Registry keys must match `config.DATA_VERIFIED` exactly.
+- Current registry status remains `UNVERIFIED` for every dataset key.
+- Source IDs are candidate review routes, not item-level proof.
+- PTCE domain mappings use the four 2026 outline domains: Medications,
+  Federal Requirements, Patient Safety and Quality Assurance, and Order Entry
+  and Processing.
+- `DATA_VERIFIED` remains the UI source of truth.
 
 ## Required Evidence For Future Content PRs
 
