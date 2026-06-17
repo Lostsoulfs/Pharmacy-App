@@ -572,6 +572,30 @@ def test_db_add_partial_appears_open(db):
     assert rows[0][1:] == ("Adderall", 30, "J. Doe", "2026-05-20")
 
 
+def test_db_update_partial_changes_open_row(db):
+    db.db_add_partial("Adderall", 30, "J. Doe", "2026-05-20")
+    pid = db.db_open_partials()[0][0]
+
+    assert db.db_update_partial(
+        pid, "Vyvanse", 20, "J. Doe", "2026-05-21") is True
+
+    assert db.db_open_partials() == [
+        (pid, "Vyvanse", 20, "J. Doe", "2026-05-21")
+    ]
+
+
+def test_db_update_partial_does_not_change_resolved_or_missing_rows(db):
+    db.db_add_partial("Adderall", 30, "J. Doe", "2026-05-20")
+    pid = db.db_open_partials()[0][0]
+    assert db.db_resolve_partial(pid) is True
+
+    assert db.db_update_partial(
+        pid, "Vyvanse", 20, "J. Doe", "2026-05-21") is False
+    assert db.db_update_partial(
+        pid + 100, "Vyvanse", 20, "J. Doe", "2026-05-21") is False
+    assert db.db_open_partials() == []
+
+
 def test_db_resolve_partial_reports_change(db):
     db.db_add_partial("Xanax", 10, "R. Roe", "2026-05-20")
     pid = db.db_open_partials()[0][0]
