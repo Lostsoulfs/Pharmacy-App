@@ -42,6 +42,12 @@ The app needs no third-party packages at runtime.
   (`CLAUDE.md` is only Claude-specific notes and points there).
 - `TESTING_PLAYBOOK.md` — the layered testing methodology.
 - `KNOWN_ISSUES.md` — tooling caveats.
+- `docs/OFFICIAL_SOURCES_2026.md` — authoritative source boundary for
+  future qualified content review.
+- `docs/DATA_SOURCE_REGISTER_2026.md` — dataset-key to source-family
+  mapping; review-routing metadata only.
+- `docs/adr/` — durable repository and clinical/legal boundary decisions.
+- `docs/LEARNINGS.md` — dated gotchas and upgrade-campaign findings.
 - `docs/audits/` — data and code audit reports.
 
 ## Status
