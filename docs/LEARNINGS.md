@@ -40,3 +40,11 @@ rules, tooling, source boundary, verification strategy, or known gotchas.
 - Comments in `clinical_data.py` should say "automated audit recorded" when
   pharmacist signoff is still pending. Avoid "verified" wording unless
   `DATA_VERIFIED` has a signed date.
+
+## 2026-06-17 - Pure validation before UI wiring
+
+- Add pure validation helpers before changing Tkinter handlers. This lets
+  length caps, date checks, SIG token rejection, and partial-fill payload rules
+  be tested without desktop/Pydroid UI variability.
+- Keep first validation PR behavior-preserving by not wiring panels yet. UI
+  wiring can then happen one panel at a time with focused smoke tests.
