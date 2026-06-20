@@ -40,3 +40,14 @@ This is the **project** log. Two companions hold detail, don't duplicate them he
   No agent-interop surface: the clinical calculators are real and pure, but advertising them as a
   callable skill would read as a clinical/med-safety claim, which is forbidden until pharmacist
   sign-off — logged as decision-gated in the backlog.
+
+## 2026-06-20 — CI-state literacy + the CodeRabbit absent-required trap
+
+New governance doc: `docs/CI_AND_LIVE_STATE.md` — the CI-status taxonomy and the
+live-state check to run before claiming a PR is green, mergeable, or blocked.
+Motivating incident here: a required `CodeRabbit` context can sit "Expected — waiting
+for status to be reported" and block a PR with nothing failing (CodeRabbit skips draft
+PRs by default; this repo opens drafts). Fix: `.coderabbit.yaml` with
+`auto_review.drafts: true`; unstick a stalled review with `@coderabbitai review`.
+Rule of thumb: a required context with no reliable producer is a deadlock, not a gate —
+diff required-contexts against what actually reported.
