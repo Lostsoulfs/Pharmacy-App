@@ -31,7 +31,8 @@
     ".github/workflows/scan.yml",
     ".github/dependabot.yml",
     "STATUS.md",
-    "docs/LEARNINGS.md"
+    "docs/LEARNINGS.md",
+    "docs/BACKLOG.md"
   ],
   "required_workflows": [
     "repository-controls",
