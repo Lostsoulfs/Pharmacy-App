@@ -4,35 +4,35 @@
 # test/quality suite only. Versions verified working 2026-05-20.
 
 # --- Core test runner -----------------------------------------------
-pytest>=9.0
-pytest-cov>=7.0
-pytest-randomly>=3.15      # random test order + reproducible seeds
+pytest>=9.1.1
+pytest-cov>=7.1.0
+pytest-randomly>=4.1.0      # random test order + reproducible seeds
 pytest-xdist>=3.8          # parallel test execution (pytest -n auto)
-pytest-mock>=3.15          # `mocker` fixture — thin wrapper over mock
+pytest-mock>=3.15.1          # `mocker` fixture — thin wrapper over mock
 pytest-timeout>=2.4        # per-test timeouts
-filelock>=3.20.3           # transitive floor; fixes GHSA-qmgc-5h2g-mvrw/GHSA-w853-jp5j-5j7f
+filelock>=3.29.4           # transitive floor; fixes GHSA-qmgc-5h2g-mvrw/GHSA-w853-jp5j-5j7f
 
 # --- Property-based testing -----------------------------------------
-hypothesis>=6.152          # property-based testing
+hypothesis>=6.155.7          # property-based testing
 hypothesis-crosshair>=0.0.28   # crosshair backend (conftest profile)
-crosshair-tool>=0.0.104    # symbolic execution engine (optional)
+crosshair-tool>=0.0.107    # symbolic execution engine (optional)
 
 # --- Static analysis ------------------------------------------------
-ruff>=0.15                 # lint + format (replaces flake8/isort/black)
-mypy>=1.18                 # static type checker
+ruff>=0.15.19                 # lint + format (replaces flake8/isort/black)
+mypy>=2.1.0                 # static type checker
 
 # --- Time control ---------------------------------------------------
-freezegun>=1.5             # freeze datetime.now() for deterministic tests
+freezegun>=1.5.5             # freeze datetime.now() for deterministic tests
 
 # --- Task orchestration ---------------------------------------------
-nox>=2024.4                # runs the layered sessions (see noxfile.py)
+nox>=2026.4.10                # runs the layered sessions (see noxfile.py)
 
 # --- Mutation testing -----------------------------------------------
 # NOTE: mutmut 3.5.0 has a latent set_start_method crash that bites
 # only when its __main__ is imported under a pre-set multiprocessing
 # context (see KNOWN_ISSUES.md). `mutmut run` itself is unaffected,
 # but the pin is kept conservative until upstream ships a fix.
-mutmut>=3.0,<3.5
+mutmut>=3.6.0,<3.7
 # cosmic-ray: a second mutation engine, used to cross-check mutmut
 # (KNOWN_ISSUES.md workaround #3). Uncomment if you need it.
 # cosmic-ray>=8.3
